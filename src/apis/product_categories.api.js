@@ -11,7 +11,7 @@ router.get('/', (req, res) => {
             console.error('Error fetching categories:', err);
             return res.status(500).json({ error: 'Failed to fetch categories' });
         }
-        res.status(200).json(results);
+        res.status(200).json({ message: 'Show list product successfully', results });
     });
 });
 
@@ -33,9 +33,17 @@ router.get('/:id', (req, res) => {
 
 // *Thêm danh mục sản phẩm mới
 router.post('/', (req, res) => {
-    const { name } = req.body;
-    const sql = 'INSERT INTO product_categories (name) VALUES (?, ?)';
-    connection.query(sql, [name], (err, results) => {
+    const { name , status } = req.body;
+
+    if (!name) {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+    if (!status) {
+        return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const sql = 'INSERT INTO product_categories (name , status) VALUES (?, ?)';
+    connection.query(sql, [name, status], (err, results) => {
         if (err) {
             console.error('Error creating category:', err);
             return res.status(500).json({ error: 'Failed to create category' });

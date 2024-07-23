@@ -10,9 +10,9 @@ const rolesApi = require('../apis/roles.api');
 const categoryBlogsApi = require('../apis/category_blogs.api');
 const blogsApi = require('../apis/blogs.api');
 const reservationsApi = require('../apis/reservations.api');
+const productsApi = require('../apis/products.api');
 
 
-router.use('/product_categories', productCategoriessApi);
 router.use('/customer', CustomerApi);
 router.use('/auth', AuthApi);
 router.use('/employees', employeesApi);
@@ -20,5 +20,8 @@ router.use('/roles', rolesApi);
 router.use('/category_blogs', categoryBlogsApi);
 router.use('/blogs', blogsApi);
 router.use('/reservations', reservationsApi);
+router.use('/category-product', productCategoriessApi);
+router.use('/product', productsApi);
+
 
 module.exports = router;
