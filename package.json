@@ -18,6 +18,7 @@
     "force": "^0.0.3",
     "jsonwebtoken": "^9.0.2",
     "mysql": "^2.18.1",
-    "nodemailer": "^6.9.13"
+    "nodemailer": "^6.9.13",
+    "nodemon": "^3.1.4"
   }
 }
