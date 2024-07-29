@@ -5,7 +5,6 @@ const router = express.Router();
 const productCategoriessApi = require('../apis/product_categories.api');
 const CustomerApi = require('../apis/customers.api');
 const AuthApi = require('../apis/auth.api');
-const productCategoriessApi = require('../apis/product_categories.api');
 const employeesApi = require('../apis/employees.api');
 const rolesApi = require('../apis/roles.api');
 const categoryBlogsApi = require('../apis/category_blogs.api');
@@ -21,6 +20,5 @@ router.use('/roles', rolesApi);
 router.use('/category_blogs', categoryBlogsApi);
 router.use('/blogs', blogsApi);
 router.use('/reservations', reservationsApi);
-
 
 module.exports = router;
