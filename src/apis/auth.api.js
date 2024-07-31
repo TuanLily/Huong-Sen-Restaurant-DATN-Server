@@ -61,32 +61,93 @@ router.post('/login', (req, res) => {
 });
 
 // Endpoint để lưu thông tin người dùng
-router.post('/login-google', async (req, res) => {
+router.post('/register-google', async (req, res) => {
     const { fullname, email, avatar } = req.body;
 
-    // Giá trị mặc định cho các trường không thể null
     const defaultTel = '';
     const defaultAddress = '';
     const defaultPassword = '';
 
     try {
-        const sql = `
-            INSERT INTO customer (fullname, email, avatar, tel, address, password) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        `;
-        connection.query(sql, [fullname, email, avatar, defaultTel, defaultAddress, defaultPassword], (err, result) => {
-            if (err) {
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(409).json({ error: 'Email already exists' });
-                }
-                return res.status(500).json({ error: 'Database error', details: err });
+        // Kiểm tra xem email đã tồn tại hay chưa
+        const checkEmailSql = 'SELECT COUNT(*) as count FROM customer WHERE email = ?';
+        connection.query(checkEmailSql, [email], (checkErr, checkResult) => {
+            if (checkErr) {
+                return res.status(500).json({ error: 'Database error', details: checkErr });
             }
-            res.send('User saved successfully');
+
+            if (checkResult[0].count > 0) {
+                return res.status(409).json({ error: 'Email đã tồn tại' });
+            }
+
+            // Nếu email chưa tồn tại, tiến hành thêm người dùng mới
+            const insertSql = `
+                INSERT INTO customer (fullname, email, avatar, tel, address, password) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            `;
+            connection.query(insertSql, [fullname, email, avatar, defaultTel, defaultAddress, defaultPassword], (insertErr, result) => {
+                if (insertErr) {
+                    return res.status(500).json({ error: 'Database error', details: insertErr });
+                }
+                res.json({
+                    success: true,
+                    user: {
+                        fullname,
+                        email,
+                        avatar
+                    }
+                });
+            });
         });
     } catch (error) {
         res.status(500).json({ error: 'Server error', details: error });
     }
 });
+
+router.get('/login-google', (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const getUserSql = 'SELECT fullname, email, avatar FROM customer WHERE email = ?';
+    connection.query(getUserSql, [email], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error', details: err });
+        }
+
+        if (result.length > 0) {
+            // Nếu người dùng tồn tại, gửi thông tin người dùng về client
+            const user = result[0];
+            res.json({
+                success: true,
+                user
+            });
+        } else {
+            // Nếu người dùng không tồn tại
+            res.status(404).json({ error: 'User not found' });
+        }
+    });
+});
+
+
+router.get('/check-email', (req, res) => {
+    const { email } = req.query;
+    const checkEmailSql = 'SELECT * FROM customer WHERE email = ?';
+    connection.query(checkEmailSql, [email], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error', details: err });
+        }
+        if (results.length > 0) {
+            res.json({ exists: true, user: results[0] });
+        } else {
+            res.json({ exists: false });
+        }
+    });
+});
+
+
 
 
 

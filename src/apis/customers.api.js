@@ -9,7 +9,7 @@ const saltRounds = 10;
 
 // *Lấy tất cả danh sách tài khoản khách hàng
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM customer';
+    const sql = 'SELECT * FROM customer order by id DESC';
     connection.query(sql, (err, results) => {
         if (err) {
             console.error('Error fetching categories:', err);
