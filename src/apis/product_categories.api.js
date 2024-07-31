@@ -5,7 +5,7 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục sản phẩm
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM product_categories';
+    const sql = 'SELECT * FROM product_categories order by id DESC';
     connection.query(sql, (err, results) => {
         if (err) {
             console.error('Error fetching categories:', err);
@@ -27,7 +27,10 @@ router.get('/:id', (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: 'Category not found' });
         }
-        res.status(200).json(results[0]);
+        res.status(200).json({
+            message: 'Show information Category successfully',
+            data: results[0]
+        });
     });
 });
 
