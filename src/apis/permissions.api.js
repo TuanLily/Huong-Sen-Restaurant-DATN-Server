@@ -4,7 +4,7 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách quyền hạn
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM permissions';
+    const sql = 'SELECT * FROM permissions order by id DESC';
     connection.query(sql, (err, results) => {
         if (err) {
             console.error('Lỗi khi lấy danh sách quyền hạn:', err);
