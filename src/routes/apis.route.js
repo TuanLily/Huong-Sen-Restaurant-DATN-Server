@@ -16,7 +16,7 @@ const promotionsApi = require('../apis/promotions.api')
 
 router.use('/customer', CustomerApi);
 router.use('/auth', AuthApi);
-router.use('/employees', employeesApi);
+router.use('/employee', employeesApi);
 router.use('/blogs', blogsApi);
 router.use('/reservations', reservationsApi);
 router.use('/category-product', productCategoriessApi);

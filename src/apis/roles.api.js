@@ -4,7 +4,7 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách vai trò
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM roles';
+    const sql = 'SELECT * FROM roles order by id desc';
     connection.query(sql, (err, results) => {
         if (err) {
             console.error('Lỗi khi lấy danh sách vai trò:', err);
@@ -33,13 +33,21 @@ router.get('/:id', (req, res) => {
 // *Thêm vai trò mới
 router.post('/', (req, res) => {
     const { name, description } = req.body;
+
+    if(!name){
+        return res.status(404).json({ error: 'Name is required' });
+    }
+    if(!description){
+        return res.status(404).json({ error: 'Description is required' });
+    }
+
     const sql = 'INSERT INTO roles (name, description) VALUES (?, ?)';
     connection.query(sql, [name, description], (err, results) => {
         if (err) {
             console.error('Lỗi khi tạo vai trò:', err);
             return res.status(500).json({ error: 'Không thể tạo vai trò' });
         }
-        res.status(201).json({ message: "Thêm vai trò thành công" });
+        res.status(201).json({ message: "Thêm vai trò thành công",  roleId: results.insertId });
     });
 });
 
@@ -47,6 +55,14 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
+
+    if(!name){
+        return res.status(404).json({ error: 'Name is required' });
+    }
+    if(!description){
+        return res.status(404).json({ error: 'Description is required' });
+    }
+
     const sql = 'UPDATE roles SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     connection.query(sql, [name, description, id], (err, results) => {
         if (err) {
@@ -64,6 +80,14 @@ router.put('/:id', (req, res) => {
 router.patch('/:id', (req, res) => {
     const { id } = req.params;
     const updates = req.body;
+
+    if(!updates.name){
+        return res.status(404).json({ error: 'Name is required' });
+    }
+    if(!updates.description){
+        return res.status(404).json({ error: 'Description is required' });
+    }
+
     const sql = 'UPDATE roles SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     connection.query(sql, [updates, id], (err, results) => {
         if (err) {

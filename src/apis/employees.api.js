@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const connection = require('../../index');
+const bcrypt = require('bcrypt');
+
+
+const saltRounds = 10;
 
 // *Lấy tất cả danh sách nhân viên
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM employees';
+    const sql = 'SELECT * FROM employees order by id desc';
     connection.query(sql, (err, results) => {
         if (err) {
             console.error('Error fetching employees:', err);
@@ -32,48 +36,103 @@ router.get('/:id', (req, res) => {
 
 // *Thêm nhân viên mới
 router.post('/', (req, res) => {
-    const { fullname , username , avatar , email , tel , address , password , role_id , status } = req.body;
-    const sql = 'INSERT INTO employees (fullname , username , avatar , email , tel , address , password , role_id , status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    connection.query(sql, [fullname , username , avatar , email , tel , address , password , role_id , status], (err, results) => {
+    const { fullname , avatar , email , tel , address , password , role_id , status } = req.body;
+
+    if (!fullname) {
+        return res.status(400).json({ error: 'Fullname is required' });
+    }
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!tel) {
+        return res.status(400).json({ error: 'Tel is required' });
+    }
+    if (!address) {
+        return res.status(400).json({ error: 'Address is required' });
+    }
+    if (!password) {
+        return res.status(400).json({ error: 'Password is required' });
+    }
+    if (!role_id === undefined) {
+        return res.status(400).json({ error: 'Role is required' });
+    }
+    if (!status === undefined) {
+        return res.status(400).json({ error: 'Status is required' });
+    }
+
+    bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
+        if (err) {
+            console.error('Error hashing password:', err);
+            return res.status(500).json({ error: 'Failed to hash password' });
+        }
+
+    const sql = 'INSERT INTO employees (fullname , avatar , email , tel , address , password , role_id , status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    connection.query(sql, [fullname , avatar , email , tel , address , hashedPassword , role_id , status], (err, results) => {
         if (err) {
             console.error('Error creating category:', err);
             return res.status(500).json({ error: 'Failed to create employees' });
         }
-        res.status(201).json({ message: "Employees add new successfully" });
+        res.status(201).json({ message: "Thêm nhân viên thành công",  employeeId: results.insertId });
     });
 });
-
-// *Cập nhật nhân viên id bằng phương thức put
-router.put('/:id', (req, res) => {
-    const { id } = req.params
-    const { fullname , username , avatar , email , tel , address , password , role_id , status } = req.body;
-    const sql = 'UPDATE employees SET fullname = ?, username = ?, avatar = ?, email = ?, tel = ?, address = ?, password = ?, role_id = ?, status = ? , updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [fullname , username , avatar , email , tel , address , password , role_id , status , id], (err, results) => {
-        if (err) {
-            console.error('Error updating employees:', err);
-            return res.status(500).json({ error: 'Failed to update employees' });
-        }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Employees not found' });
-        }
-        res.status(200).json({ message: "Employees update successfully" });
-    });
 });
 
-// *Cập nhật nhân viên theo id bằng phương thức patch
-router.patch('/:id', (req, res) => {
+// *Cập nhật danh mục blog theo id bằng phương thức patch
+router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    const sql = 'UPDATE employees SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [updates, id], (err, results) => {
+
+    if (!updates.fullname) {
+        return res.status(400).json({ error: 'Fullname is required' });
+    }
+    if (!updates.email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!updates.tel) {
+        return res.status(400).json({ error: 'Tel is required' });
+    }
+    if (!updates.address) {
+        return res.status(400).json({ error: 'Address is required' });
+    }
+    if (!updates.password) {
+        return res.status(400).json({ error: 'Password is required' });
+    }
+    if (!updates.role_id === undefined) {
+        return res.status(400).json({ error: 'Role is required' });
+    }
+    if (!updates.status === undefined) {
+        return res.status(400).json({ error: 'Status is required' });
+    }
+
+    if (updates.password) {
+        try {
+            updates.password = await bcrypt.hash(updates.password, saltRounds);
+        } catch (err) {
+            console.error('Error hashing password:', err);
+            return res.status(500).json({ error: 'Failed to update employee' });
+        }
+    }
+
+    let sql = 'UPDATE employees SET ';
+    const values = [];
+    for (const [key, value] of Object.entries(updates)) {
+        if (key !== 'updated_at') {
+            sql += `${key} = ?, `;
+            values.push(value);
+        }
+    }
+    sql += 'updated_at = NOW() WHERE id = ?';
+    values.push(id);
+
+    connection.query(sql, values, (err, results) => {
         if (err) {
-            console.error('Error partially updating employees:', err);
-            return res.status(500).json({ error: 'Failed to partially update employees' });
+            console.error('Error updating employee blog:', err);
+            return res.status(500).json({ error: 'Failed to update employee' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Employees not found' });
+            return res.status(404).json({ error: 'Employee not found' });
         }
-        res.status(200).json({ message: "Employees products update successfully" });
+        res.status(200).json({ message: 'Employee updated successfully' });
     });
 });
 
