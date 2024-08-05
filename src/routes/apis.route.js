@@ -13,6 +13,7 @@ const reservationsApi = require('../apis/reservations.api');
 const productsApi = require('../apis/products.api');
 const permissionsApi = require("../apis/permissions.api")
 const promotionsApi = require('../apis/promotions.api')
+const tablesBlogsApi = require("../apis/tables.api")
 
 router.use('/customer', CustomerApi);
 router.use('/auth', AuthApi);
@@ -25,5 +26,6 @@ router.use("/permissions", permissionsApi)
 router.use("/role", rolesApi);
 router.use("/category-blog", categoryBlogsApi);
 router.use("/promotions", promotionsApi);
+router.use("/tables", tablesBlogsApi);
 
 module.exports = router;
