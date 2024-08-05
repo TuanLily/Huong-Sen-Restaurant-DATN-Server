@@ -44,6 +44,9 @@ router.post('/', (req, res) => {
     const sql = 'INSERT INTO roles (name, description) VALUES (?, ?)';
     connection.query(sql, [name, description], (err, results) => {
         if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(409).json({ error: 'Vai trò đã tồn tại' });
+            }
             console.error('Lỗi khi tạo vai trò:', err);
             return res.status(500).json({ error: 'Không thể tạo vai trò' });
         }
@@ -66,6 +69,9 @@ router.put('/:id', (req, res) => {
     const sql = 'UPDATE roles SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     connection.query(sql, [name, description, id], (err, results) => {
         if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(409).json({ error: 'Vai trò đã tồn tại' });
+            }
             console.error('Lỗi khi cập nhật vai trò:', err);
             return res.status(500).json({ error: 'Không thể cập nhật vai trò' });
         }
@@ -91,6 +97,9 @@ router.patch('/:id', (req, res) => {
     const sql = 'UPDATE roles SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     connection.query(sql, [updates, id], (err, results) => {
         if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(409).json({ error: 'Vai trò đã tồn tại' });
+            }
             console.error('Lỗi khi cập nhật một phần vai trò:', err);
             return res.status(500).json({ error: 'Không thể cập nhật một phần vai trò' });
         }
