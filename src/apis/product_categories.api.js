@@ -92,17 +92,57 @@ router.patch('/:id', (req, res) => {
 // *Xóa danh mục sản phẩm theo id
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
-    const sql = 'DELETE FROM product_categories WHERE id = ?';
-    connection.query(sql, [id], (err, results) => {
+
+    // Bước 1: Kiểm tra xem danh mục có sản phẩm liên kết hay không
+    const checkSql = 'SELECT * FROM products WHERE categories_id = ?';
+    connection.query(checkSql, [id], (err, results) => {
         if (err) {
-            console.error('Error deleting category:', err);
-            return res.status(500).json({ error: 'Failed to delete category' });
+            console.error('Error checking products:', err);
+            return res.status(500).json({ error: 'Failed to check products' });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Category not found' });
+
+        if (results.length > 0) {
+            // Bước 2: Tạo danh mục mới
+            const newCategoryName = `New Category for ${id}`; // Tên danh mục mới có thể tùy chỉnh
+            const createSql = 'INSERT INTO product_categories (name, status) VALUES (?, ?)';
+            connection.query(createSql, [newCategoryName, 1], (err, newCategoryResults) => {
+                if (err) {
+                    console.error('Error creating new category:', err);
+                    return res.status(500).json({ error: 'Failed to create new category' });
+                }
+
+                const newCategoryId = newCategoryResults.insertId;
+
+                // Bước 3: Cập nhật tất cả sản phẩm sang danh mục mới
+                const updateSql = 'UPDATE products SET categories_id = ? WHERE categories_id = ?';
+                connection.query(updateSql, [newCategoryId, id], (err) => {
+                    if (err) {
+                        console.error('Error updating products:', err);
+                        return res.status(500).json({ error: 'Failed to update products' });
+                    }
+
+                    // Bước 4: Xóa danh mục cũ
+                    const deleteSql = 'DELETE FROM product_categories WHERE id = ?';
+                    connection.query(deleteSql, [id], (err) => {
+                        if (err) {
+                            console.error('Error deleting category:', err);
+                            return res.status(500).json({ error: 'Failed to delete category' });
+                        }
+                        res.status(200).json({ message: 'Category deleted and products reassigned successfully' });
+                    })
+                })
+            })
+        } else {
+            const deleteSql = 'DELETE FROM product_categories WHERE id = ?';
+            connection.query(deleteSql, [id], (err) => {
+                if (err) {
+                    console.error('Error deleting category:', err);
+                    return res.status(500).json({ error: 'Failed to delete category' });
+                }
+                res.status(200).json({ message: 'Category deleted and products reassigned successfully' });
+            })
         }
-        res.status(200).json({ message: 'Category deleted successfully' });
-    });
+    })
 });
 
 module.exports = router;

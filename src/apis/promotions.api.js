@@ -35,13 +35,16 @@ router.get('/:id', (req, res) => {
 
 // *Thêm promotions mới
 router.post('/', (req, res) => {
-    const { name , discount , valid_from , valid_to } = req.body;
+    const { code_name , discount , quantity , valid_from , valid_to } = req.body;
 
-    if (!name) {
-        return res.status(400).json({ error: 'Name is required' });
+    if (!code_name) {
+        return res.status(400).json({ error: 'Code_name is required' });
     }
     if (!discount) {
         return res.status(400).json({ error: 'Discount is required' });
+    }
+    if (!quantity) {
+        return res.status(400).json({ error: 'Quantity is required' });
     }
     if (!valid_from) {
         return res.status(400).json({ error: 'Valid_from is required' });
@@ -50,8 +53,8 @@ router.post('/', (req, res) => {
         return res.status(400).json({ error: 'Valid_to is required' });
     }
 
-    const sql = 'INSERT INTO promotions (name , discount , valid_from , valid_to) VALUES (?, ?, ?, ?)';
-    connection.query(sql, [name , discount , valid_from , valid_to], (err, results) => {
+    const sql = 'INSERT INTO promotions (code_name , discount , quantity , valid_from , valid_to) VALUES (?, ?, ?, ?, ?)';
+    connection.query(sql, [code_name , discount , quantity , valid_from , valid_to], (err, results) => {
         if (err) {
             console.error('Error creating promotions:', err);
             return res.status(500).json({ error: 'Failed to create promotions', promotionId: results.insertId });
@@ -63,9 +66,9 @@ router.post('/', (req, res) => {
 // *Cập nhật promotions id bằng phương thức put
 router.put('/:id', (req, res) => {
     const { id } = req.params
-    const { name , discount , valid_from , valid_to } = req.body;
-    const sql = 'UPDATE promotions SET name = ?, discount = ?, valid_from = ?, valid_to = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [name , discount , valid_from , valid_to , id], (err, results) => {
+    const { name , discount , quantity , valid_from , valid_to } = req.body;
+    const sql = 'UPDATE promotions SET name = ?, discount = ?, quantity = ?, valid_from = ?, valid_to = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    connection.query(sql, [name , discount , quantity , valid_from , valid_to , id], (err, results) => {
         if (err) {
             console.error('Error updating promotions:', err);
             return res.status(500).json({ error: 'Failed to update promotions' });
@@ -94,7 +97,7 @@ router.patch('/:id', (req, res) => {
     });
 });
 
-// *Xóa sản phẩm theo id
+// *Xóa promotions theo id
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
     const sql = 'DELETE FROM promotions WHERE id = ?';
