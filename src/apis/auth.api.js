@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken'); // Nếu bạn muốn sử dụng JWT
 const connection = require('../../index');
+const authenticateJWT = require('./authMiddleware');
 require('dotenv').config();
 
 // Secret key for JWT
