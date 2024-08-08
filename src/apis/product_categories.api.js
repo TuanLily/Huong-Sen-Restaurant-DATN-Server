@@ -5,13 +5,45 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục sản phẩm
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM product_categories order by id DESC';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching categories:', err);
-            return res.status(500).json({ error: 'Failed to fetch categories' });
+            console.error('Error counting product_categories:', err);
+            return res.status(500).json({ error: 'Failed to count product_categories' });
         }
-        res.status(200).json({ message: 'Show list product successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching product_categories:', err);
+                return res.status(500).json({ error: 'Failed to fetch product_categories' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list product_categories successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 
