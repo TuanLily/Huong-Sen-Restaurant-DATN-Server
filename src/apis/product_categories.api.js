@@ -5,13 +5,45 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục sản phẩm
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM product_categories order by id DESC';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching categories:', err);
-            return res.status(500).json({ error: 'Failed to fetch categories' });
+            console.error('Error counting product_categories:', err);
+            return res.status(500).json({ error: 'Failed to count product_categories' });
         }
-        res.status(200).json({ message: 'Show list product successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching product_categories:', err);
+                return res.status(500).json({ error: 'Failed to fetch product_categories' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list product_categories successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 
@@ -101,48 +133,69 @@ router.delete('/:id', (req, res) => {
             return res.status(500).json({ error: 'Failed to check products' });
         }
 
-        if (results.length > 0) {
-            // Bước 2: Tạo danh mục mới
-            const newCategoryName = `New Category for ${id}`; // Tên danh mục mới có thể tùy chỉnh
-            const createSql = 'INSERT INTO product_categories (name, status) VALUES (?, ?)';
-            connection.query(createSql, [newCategoryName, 1], (err, newCategoryResults) => {
+        const hasProducts = results.length > 0;
+
+        if (hasProducts) {
+            // Bước 2: Kiểm tra xem danh mục "Chưa phân loại" có tồn tại không
+            const checkUncategorizedSql = 'SELECT * FROM product_categories WHERE name = ?';
+            connection.query(checkUncategorizedSql, ['Chưa phân loại'], (err, uncategorizedResults) => {
                 if (err) {
-                    console.error('Error creating new category:', err);
-                    return res.status(500).json({ error: 'Failed to create new category' });
+                    console.error('Error checking uncategorized category:', err);
+                    return res.status(500).json({ error: 'Failed to check uncategorized category' });
                 }
 
-                const newCategoryId = newCategoryResults.insertId;
+                let uncategorizedId;
 
-                // Bước 3: Cập nhật tất cả sản phẩm sang danh mục mới
-                const updateSql = 'UPDATE products SET categories_id = ? WHERE categories_id = ?';
-                connection.query(updateSql, [newCategoryId, id], (err) => {
-                    if (err) {
-                        console.error('Error updating products:', err);
-                        return res.status(500).json({ error: 'Failed to update products' });
-                    }
-
-                    // Bước 4: Xóa danh mục cũ
-                    const deleteSql = 'DELETE FROM product_categories WHERE id = ?';
-                    connection.query(deleteSql, [id], (err) => {
+                // Nếu danh mục "Chưa phân loại" không tồn tại, tạo mới
+                if (uncategorizedResults.length === 0) {
+                    const createUncategorizedSql = 'INSERT INTO product_categories (name, status) VALUES (?, ?)';
+                    connection.query(createUncategorizedSql, ['Chưa phân loại', 1], (err, newCategoryResults) => {
                         if (err) {
-                            console.error('Error deleting category:', err);
-                            return res.status(500).json({ error: 'Failed to delete category' });
+                            console.error('Error creating uncategorized category:', err);
+                            return res.status(500).json({ error: 'Failed to create uncategorized category' });
                         }
-                        res.status(200).json({ message: 'Category deleted and products reassigned successfully' });
-                    })
-                })
-            })
+                        uncategorizedId = newCategoryResults.insertId;
+                        reassignProductsAndDeleteCategory(id, uncategorizedId, res);
+                    });
+                } else {
+                    uncategorizedId = uncategorizedResults[0].id;
+                    reassignProductsAndDeleteCategory(id, uncategorizedId, res);
+                }
+            });
         } else {
+            // Nếu không có sản phẩm, xóa danh mục cũ ngay lập tức
             const deleteSql = 'DELETE FROM product_categories WHERE id = ?';
             connection.query(deleteSql, [id], (err) => {
                 if (err) {
                     console.error('Error deleting category:', err);
                     return res.status(500).json({ error: 'Failed to delete category' });
                 }
-                res.status(200).json({ message: 'Category deleted and products reassigned successfully' });
-            })
+                res.status(200).json({ message: 'Category deleted successfully' });
+            });
         }
-    })
+    });
 });
+
+// Hàm để chuyển sản phẩm và xóa danh mục
+function reassignProductsAndDeleteCategory(categoryId, uncategorizedId, res) {
+    // Cập nhật tất cả sản phẩm sang danh mục "Chưa phân loại"
+    const updateSql = 'UPDATE products SET categories_id = ? WHERE categories_id = ?';
+    connection.query(updateSql, [uncategorizedId, categoryId], (err) => {
+        if (err) {
+            console.error('Error updating products:', err);
+            return res.status(500).json({ error: 'Failed to update products' });
+        }
+
+        // Xóa danh mục cũ
+        const deleteSql = 'DELETE FROM product_categories WHERE id = ?';
+        connection.query(deleteSql, [categoryId], (err) => {
+            if (err) {
+                console.error('Error deleting category:', err);
+                return res.status(500).json({ error: 'Failed to delete category' });
+            }
+            res.status(200).json({ message: 'Category deleted and products reassigned successfully' });
+        });
+    });
+}
 
 module.exports = router;

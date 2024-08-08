@@ -4,13 +4,45 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách promotions
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM promotions order by id DESC';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM promotions WHERE code_name LIKE ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM promotions WHERE code_name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching promotions:', err);
-            return res.status(500).json({ error: 'Failed to fetch promotions' });
+            console.error('Error counting promotions:', err);
+            return res.status(500).json({ error: 'Failed to count promotions' });
         }
-        res.status(200).json({ message: 'Show list promotions successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách promotion cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching promotions:', err);
+                return res.status(500).json({ error: 'Failed to fetch promotions' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list promotions successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 

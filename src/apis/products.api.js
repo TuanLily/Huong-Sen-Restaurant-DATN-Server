@@ -4,13 +4,133 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách sản phẩm
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM products order by id DESC';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching products:', err);
-            return res.status(500).json({ error: 'Failed to fetch products' });
+            console.error('Error counting products:', err);
+            return res.status(500).json({ error: 'Failed to count products' });
         }
-        res.status(200).json({ message: 'Show list product successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching products:', err);
+                return res.status(500).json({ error: 'Failed to fetch products' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list products successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
+    });
+});
+
+// *Lấy tất cả danh sách sản phẩm hoạt động
+router.get('/hoat_dong', (req, res) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%` , 1], (err, countResults) => {
+        if (err) {
+            console.error('Error counting products:', err);
+            return res.status(500).json({ error: 'Failed to count products' });
+        }
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, 1, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching products:', err);
+                return res.status(500).json({ error: 'Failed to fetch products' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list products successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
+    });
+});
+
+// *Lấy tất cả danh sách sản phẩm ngưng hoạt động
+router.get('/ngung_hoat_dong', (req, res) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`, 0], (err, countResults) => {
+        if (err) {
+            console.error('Error counting products:', err);
+            return res.status(500).json({ error: 'Failed to count products' });
+        }
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, 0, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching products:', err);
+                return res.status(500).json({ error: 'Failed to fetch products' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list products successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 
