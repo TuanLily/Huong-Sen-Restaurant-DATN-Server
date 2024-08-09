@@ -7,17 +7,50 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
 
-// *Lấy tất cả danh sách tài khoản khách hàng
+// Lấy tất cả danh sách tài khoản khách hàng với phân trang
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM customer order by id DESC';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 5 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 5;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM customer WHERE fullname LIKE ?';
+
+    // SQL truy vấn để lấy danh sách khách hàng phân trang
+    let sql = 'SELECT * FROM customer WHERE fullname LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching categories:', err);
-            return res.status(500).json({ error: 'Failed to fetch categories' });
+            console.error('Error counting customers:', err);
+            return res.status(500).json({ error: 'Failed to count customers' });
         }
-        res.status(200).json({ message: 'Show list customer successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách khách hàng cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching customers:', err);
+                return res.status(500).json({ error: 'Failed to fetch customers' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list customer successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
+
 
 
 // *Lấy thông tin tài khoản khách hàng theo id
@@ -90,22 +123,6 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    if (!updates.fullname) {
-        return res.status(400).json({ error: 'Fullname is required' });
-    }
-    if (!updates.email) {
-        return res.status(400).json({ error: 'Email is required' });
-    }
-    if (!updates.tel) {
-        return res.status(400).json({ error: 'Tel is required' });
-    }
-    if (!updates.address) {
-        return res.status(400).json({ error: 'Address is required' });
-    }
-    if (!updates.password) {
-        return res.status(400).json({ error: 'Password is required' });
-    }
-
     // Kiểm tra nếu có trường mật khẩu thì mã hóa nó
     if (updates.password) {
         try {
@@ -153,6 +170,32 @@ router.delete('/:id', (req, res) => {
             return res.status(404).json({ error: 'Customer not found' });
         }
         res.status(200).json({ message: 'Customer deleted successfully' });
+    });
+});
+
+router.post('/check-password', (req, res) => {
+    const { email, currentPassword } = req.body;
+
+    const sql = 'SELECT * FROM customer WHERE email = ?';
+    connection.query(sql, [email], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to fetch customer' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        const user = results[0];
+        bcrypt.compare(currentPassword, user.password, (err, isMatch) => {
+            if (err) {
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            if (!isMatch) {
+                return res.status(400).json({ error: 'Mật khẩu không chính xác' });
+            }
+
+            res.status(200).json({ message: 'Password is correct' });
+        });
     });
 });
 

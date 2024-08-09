@@ -112,7 +112,7 @@ router.get('/login-google', (req, res) => {
         return res.status(400).json({ error: 'Email is required' });
     }
 
-    const getUserSql = 'SELECT fullname, email, avatar, tel, address FROM customer WHERE email = ?';
+    const getUserSql = 'SELECT id, fullname, email, avatar, tel, address FROM customer WHERE email = ?';
     connection.query(getUserSql, [email], (err, result) => {
         if (err) {
             return res.status(500).json({ error: 'Database error', details: err });
