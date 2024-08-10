@@ -29,4 +29,5 @@ router.use("/promotions", promotionsApi);
 router.use("/tables", tablesBlogsApi);
 router.use('/auth_admin', autAdminApi);
 
+
 module.exports = router;
