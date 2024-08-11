@@ -2,15 +2,40 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../../index');
 
-// *Lấy tất cả danh sách danh mục blog
+// *Lấy tất cả danh sách danh mục blog với phân trang
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM blog_categories';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 5 } = req.query;
+
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 5;
+    const offset = (pageNumber - 1) * size;
+
+    const sqlCount = 'SELECT COUNT(*) as total FROM blog_categories WHERE name LIKE ?';
+    let sql = 'SELECT * FROM blog_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Lỗi khi lấy danh sách danh mục blog:', err);
-            return res.status(500).json({ error: 'Không thể lấy danh sách danh mục blog' });
+            console.error('Lỗi khi đếm danh mục blog:', err);
+            return res.status(500).json({ error: 'Không thể đếm danh mục blog' });
         }
-        res.status(200).json({ message: 'Show list blog cate successfully', results });
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size);
+
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Lỗi khi lấy danh sách danh mục blog:', err);
+                return res.status(500).json({ error: 'Không thể lấy danh sách danh mục blog' });
+            }
+
+            res.status(200).json({
+                message: 'Lấy danh sách danh mục blog thành công',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 
@@ -26,7 +51,10 @@ router.get('/:id', (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: 'Không tìm thấy danh mục blog' });
         }
-        res.status(200).json(results[0]);
+        res.status(200).json({
+            message: 'Lấy thông tin danh mục blog thành công',
+            data: results[0]
+        });
     });
 });
 
@@ -50,35 +78,10 @@ router.post('/', (req, res) => {
             console.error('Lỗi khi tạo danh mục blog:', err);
             return res.status(500).json({ error: 'Không thể tạo danh mục blog' });
         }
-        res.status(201).json({ message: 'Thêm danh mục blog thành công', categoryId: results.insertId });
-    });
-});
-
-// *Cập nhật danh mục blog theo id bằng phương thức put
-router.put('/:id', (req, res) => {
-    const { id } = req.params;
-    const { name, status } = req.body;
-
-    if (!name) {
-        return res.status(400).json({ error: 'Name is required' });
-    }
-    if (status === undefined) {
-        return res.status(400).json({ error: 'Status is required' });
-    }
-
-    const sql = 'UPDATE blog_categories SET name = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [name, status, id], (err, results) => {
-        if (err) {
-            if (err.code === 'ER_DUP_ENTRY') {
-                return res.status(409).json({ error: 'Danh mục blog đã tồn tại' });
-            }
-            console.error('Lỗi khi cập nhật danh mục blog:', err);
-            return res.status(500).json({ error: 'Không thể cập nhật danh mục blog' });
-        }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy danh mục blog' });
-        }
-        res.status(200).json({ message: "Cập nhật danh mục blog thành công" });
+        res.status(201).json({
+            message: 'Thêm danh mục blog thành công',
+            categoryId: results.insertId
+        });
     });
 });
 
