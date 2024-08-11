@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../../index");
 
+// Lấy danh sách bàn với phân trang và tìm kiếm
 router.get("/", (req, res) => {
   const { search = "", page = 1, pageSize = 5 } = req.query;
 
@@ -29,7 +30,7 @@ router.get("/", (req, res) => {
       }
 
       res.status(200).json({
-        message: "Show list of tables successfully",
+        message: "Hiển thị danh sách bàn thành công",
         results,
         totalCount,
         totalPages,
@@ -39,6 +40,7 @@ router.get("/", (req, res) => {
   });
 });
 
+// Lấy thông tin bàn theo ID
 router.get("/:id", (req, res) => {
   const { id } = req.params;
   const sql = "SELECT * FROM tables WHERE id = ?";
@@ -51,23 +53,24 @@ router.get("/:id", (req, res) => {
       return res.status(404).json({ error: "Không tìm thấy bàn" });
     }
     res.status(200).json({
-      message: "Show information table successfully",
+      message: "Hiển thị thông tin bàn thành công",
       data: results[0],
     });
   });
 });
 
+// Thêm bàn mới
 router.post("/", (req, res) => {
   const { number, capacity, status } = req.body;
 
-  if (number === undefined) {
-    return res.status(400).json({ error: "Number is required" });
+  if (number === undefined || number < 0) {
+    return res.status(400).json({ error: "Số bàn là bắt buộc và không được âm" });
   }
-  if (!capacity || capacity > 8) {
-    return res.status(400).json({ error: "Số lượng người không được quá 8 người" });
+  if (capacity === undefined || capacity < 0 || capacity > 8) {
+    return res.status(400).json({ error: "Số lượng người không được âm và không được quá 8 người" });
   }
   if (status === undefined) {
-    return res.status(400).json({ error: "Status is required" });
+    return res.status(400).json({ error: "Trạng thái là bắt buộc" });
   }
 
   const sql = "INSERT INTO tables (number, capacity, status) VALUES (?, ?, ?)";
@@ -86,18 +89,19 @@ router.post("/", (req, res) => {
   });
 });
 
+// Cập nhật thông tin bàn theo ID
 router.put("/:id", (req, res) => {
   const { id } = req.params;
   const { number, capacity, status } = req.body;
 
-  if (number === undefined) {
-    return res.status(400).json({ error: "Number is required" });
+  if (number === undefined || number < 0) {
+    return res.status(400).json({ error: "Số bàn là bắt buộc và không được âm" });
   }
-  if (!capacity || capacity > 8) {
-    return res.status(400).json({ error: "Số lượng người không được quá 8 người" });
+  if (capacity === undefined || capacity < 0 || capacity > 8) {
+    return res.status(400).json({ error: "Số lượng người không được âm và không được quá 8 người" });
   }
   if (status === undefined) {
-    return res.status(400).json({ error: "Status is required" });
+    return res.status(400).json({ error: "Trạng thái là bắt buộc" });
   }
 
   const sql =
@@ -114,12 +118,13 @@ router.put("/:id", (req, res) => {
   });
 });
 
+// Cập nhật một số trường thông tin của bàn theo ID
 router.patch("/:id", (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
-  if (updates.capacity && updates.capacity > 8) {
-    return res.status(400).json({ error: "Số lượng người không được quá 8 người" });
+  if (updates.capacity !== undefined && (updates.capacity < 0 || updates.capacity > 8)) {
+    return res.status(400).json({ error: "Số lượng người không được âm và không được quá 8 người" });
   }
 
   let sql = "UPDATE tables SET ";
@@ -148,6 +153,7 @@ router.patch("/:id", (req, res) => {
   });
 });
 
+// Xóa bàn theo ID
 router.delete("/:id", (req, res) => {
   const { id } = req.params;
   const sql = "DELETE FROM tables WHERE id = ?";

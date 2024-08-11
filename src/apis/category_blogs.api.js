@@ -123,17 +123,43 @@ router.patch('/:id', (req, res) => {
 // *Xóa danh mục blog theo id
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
-    const sql = 'DELETE FROM blog_categories WHERE id = ?';
-    connection.query(sql, [id], (err, results) => {
+    
+    // Bước 1: Tìm id của danh mục "Undefined"
+    const undefinedCategorySql = 'SELECT id FROM blog_categories WHERE name = "Undefined" LIMIT 1';
+
+    connection.query(undefinedCategorySql, (err, results) => {
         if (err) {
-            console.error('Lỗi khi xóa danh mục blog:', err);
-            return res.status(500).json({ error: 'Không thể xóa danh mục blog' });
+            console.error('Lỗi khi lấy danh mục không xác định:', err);
+            return res.status(500).json({ error: 'Không thể xử lý yêu cầu' });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy danh mục blog' });
+        if (results.length === 0) {
+            return res.status(500).json({ error: 'Danh mục không xác định không tồn tại' });
         }
-        res.status(200).json({ message: 'Xóa danh mục blog thành công' });
+
+        const undefinedCategoryId = results[0].id;
+
+        // Bước 2: Chuyển tất cả bài viết sang danh mục "Undefined"
+        const updatePostsSql = 'UPDATE blogs SET blog_category_id = ? WHERE blog_category_id = ?';
+        connection.query(updatePostsSql, [undefinedCategoryId, id], (err) => {
+            if (err) {
+                console.error('Lỗi khi cập nhật bài viết:', err);
+                return res.status(500).json({ error: 'Không thể cập nhật bài viết' });
+            }
+
+            // Bước 3: Cập nhật trạng thái của danh mục
+            const updateCategoryStatusSql = 'UPDATE blog_categories SET status = 0 WHERE id = ?';
+            connection.query(updateCategoryStatusSql, [id], (err) => {
+                if (err) {
+                    console.error('Lỗi khi cập nhật trạng thái danh mục:', err);
+                    return res.status(500).json({ error: 'Không thể cập nhật trạng thái danh mục' });
+                }
+
+                res.status(200).json({ message: 'Xóa mềm danh mục blog thành công' });
+            });
+        });
     });
 });
+
+
 
 module.exports = router;
