@@ -6,15 +6,47 @@ const bcrypt = require('bcrypt');
 
 const saltRounds = 10;
 
-// *Lấy tất cả danh sách nhân viên
+// Lấy tất cả danh sách tài khoản khách hàng với phân trang
 router.get('/', (req, res) => {
-    const sql = 'SELECT * FROM employees order by id desc';
-    connection.query(sql, (err, results) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM employees WHERE fullname LIKE ?';
+    
+    // SQL truy vấn để lấy danh sách khách hàng phân trang
+    let sql = 'SELECT * FROM employees WHERE fullname LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
         if (err) {
-            console.error('Error fetching employees:', err);
-            return res.status(500).json({ error: 'Failed to fetch employees' });
+            console.error('Error counting employees:', err);
+            return res.status(500).json({ error: 'Failed to count employees' });
         }
-        res.status(200).json(results);
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách khách hàng cho trang hiện tại
+        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching employees:', err);
+                return res.status(500).json({ error: 'Failed to fetch employees' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list employees successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
     });
 });
 
