@@ -1,16 +1,60 @@
 const express = require("express");
 const router = express.Router();
 const connection = require("../../index");
+const bcrypt = require('bcrypt');
+
+const saltRounds = 10;
+
 
 // *Lấy tất cả danh sách blog
-router.get("/", (req, res) => {
-  const sql = "SELECT * FROM blogs";
-  connection.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching blogs:", err);
-      return res.status(500).json({ error: "Failed to fetch blogs" });
-    }
-    res.status(200).json(results);
+router.get('/', (req, res) => {
+  const { search = '', page = 1, pageSize = 5 } = req.query;
+
+  // Ensure page and pageSize are integers
+  const pageNumber = parseInt(page, 10) || 1;
+  const size = parseInt(pageSize, 10) || 5;
+  const offset = (pageNumber - 1) * size;
+
+  // SQL query to count the total number of records
+  const sqlCount = `SELECT COUNT(*) as total 
+                    FROM blogs 
+                    WHERE title LIKE ? 
+                    OR author LIKE ?`;
+
+  // SQL query to fetch the paginated list of blogs
+  let sql = `SELECT * 
+             FROM blogs 
+             WHERE title LIKE ? 
+             OR author LIKE ? 
+             ORDER BY id DESC 
+             LIMIT ? OFFSET ?`;
+
+  // Count the total number of matching records
+  connection.query(sqlCount, [`%${search}%`, `%${search}%`], (err, countResults) => {
+      if (err) {
+          console.error('Error counting blogs:', err);
+          return res.status(500).json({ error: 'Failed to count blogs' });
+      }
+
+      const totalCount = countResults[0].total;
+      const totalPages = Math.ceil(totalCount / size); // Calculate the total number of pages
+
+      // Fetch the list of blogs for the current page
+      connection.query(sql, [`%${search}%`, `%${search}%`, size, offset], (err, results) => {
+          if (err) {
+              console.error('Error fetching blogs:', err);
+              return res.status(500).json({ error: 'Failed to fetch blogs' });
+          }
+
+          // Return the result with pagination information
+          res.status(200).json({
+              message: 'Show list blog successfully',
+              results,
+              totalCount,
+              totalPages,
+              currentPage: pageNumber
+          });
+      });
   });
 });
 
