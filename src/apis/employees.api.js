@@ -184,4 +184,30 @@ router.delete('/:id', (req, res) => {
     });
 });
 
+router.post('/check-password', (req, res) => {
+    const { email, currentPassword } = req.body;
+
+    const sql = 'SELECT * FROM employees WHERE email = ?';
+    connection.query(sql, [email], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to fetch employees' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'employees not found' });
+        }
+
+        const employee = results[0];
+        bcrypt.compare(currentPassword, employee.password, (err, isMatch) => {
+            if (err) {
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            if (!isMatch) {
+                return res.status(400).json({ error: 'Mật khẩu không chính xác' });
+            }
+
+            res.status(200).json({ message: 'Password is correct' });
+        });
+    });
+});
+
 module.exports = router;

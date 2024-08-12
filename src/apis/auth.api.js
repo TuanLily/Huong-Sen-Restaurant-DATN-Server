@@ -153,6 +153,22 @@ router.get('/check-email', (req, res) => {
     });
 });
 
+// Kiểm tra email tồn tại
+router.get('/check-email', (req, res) => {
+    const { email } = req.query;
+    const checkEmailSql = 'SELECT * FROM employees WHERE email = ?';
+    connection.query(checkEmailSql, [email], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error', details: err });
+        }
+        if (results.length > 0) {
+            res.json({ exists: true, employee: results[0] })
+        } else {
+            res.json({ exists: false });
+        }
+    });
+});
+
 // Đăng ký tài khoản
 router.post('/register', async (req, res) => {
     const { fullname, email, avatar, tel, address, password } = req.body;
