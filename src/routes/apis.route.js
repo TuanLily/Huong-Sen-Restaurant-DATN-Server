@@ -15,22 +15,30 @@ const promotionsApi = require('../apis/promotions.api')
 const tablesBlogsApi = require("../apis/tables.api")
 const autAdminApi = require('../apis/auth_admin')
 const commentBlogApi = require("../apis/comment_blog.api")
+const usersAPI = require("../apis/users.api")
 
+const authenticateToken = require('../apis/authMiddleware')
 
-router.use('/customer', CustomerApi);
+// Privated Routes
+router.use('/customer', authenticateToken, CustomerApi);
 router.use('/auth', AuthApi);
-router.use('/employee', employeesApi);
-router.use('/blogs', blogsApi);
-router.use('/reservations', reservationsApi);
-router.use('/category-product', productCategoriessApi);
-router.use('/product', productsApi);
-router.use("/permissions", permissionsApi)
-router.use("/role", rolesApi);
-router.use("/category-blog", categoryBlogsApi);
-router.use("/promotions", promotionsApi);
-router.use("/tables", tablesBlogsApi);
+router.use('/employee', authenticateToken, employeesApi);
+router.use('/blogs', authenticateToken, blogsApi);
+router.use('/reservations', authenticateToken, reservationsApi);
+router.use('/category-product', authenticateToken, productCategoriessApi);
+router.use('/product', authenticateToken, productsApi);
+router.use("/permissions", authenticateToken, permissionsApi)
+router.use("/role", authenticateToken, rolesApi);
+router.use("/category-blog", authenticateToken, categoryBlogsApi);
+router.use("/promotions", authenticateToken, promotionsApi);
+router.use("/tables", authenticateToken, tablesBlogsApi);
 router.use('/auth_admin', autAdminApi);
-router.use("/comment-blog", commentBlogApi)
+router.use("/comment-blog", authenticateToken, commentBlogApi);
+router.use("/users", usersAPI);
+
+// Public Routes
+router.use('/public/category-product', productCategoriessApi);
+router.use('/public/product', productsApi);
 
 
 module.exports = router;

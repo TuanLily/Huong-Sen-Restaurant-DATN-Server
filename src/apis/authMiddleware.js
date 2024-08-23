@@ -5,23 +5,22 @@ require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET_KEY;
 
-const authenticateJWT = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                return res.sendStatus(403); // Forbidden
-            }
-
-            req.user = user;
-            next();
-        });
-    } else {
-        res.sendStatus(401); // Unauthorized
+    if (!token) {
+        return res.status(401).json("Token không có hoặc không hợp lệ hoặc không có quyền truy cập"); // Thông báo lỗi chi tiết khi không có token
     }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json("Không có quyền truy cập"); // Thông báo lỗi khi token không hợp lệ
+        }
+
+        req.user = user; 
+        next(); // Chuyển đến middleware hoặc route tiếp theo
+    });
 };
 
-module.exports = authenticateJWT;
+module.exports = authenticateToken;
