@@ -10,6 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY; // Thay thế bằng secret key c
 // Đăng nhập
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    const user_type = 'Nhân Viên';
 
     // Kiểm tra các trường bắt buộc
     if (!username || !password) {
@@ -17,15 +18,15 @@ router.post('/login', async (req, res) => {
     }
 
     // Tìm nhân viên theo tên
-    const sql = 'SELECT * FROM employees WHERE username = ?';
-    connection.query(sql, [username], async (err, results) => {
+    const sql = 'SELECT * FROM users WHERE username = ? AND user_type = ?';
+    connection.query(sql, [username , user_type], async (err, results) => {
         if (err) {
-            console.error('Error fetching employee:', err);
-            return res.status(500).json({ error: 'Failed to fetch employees' });
+            console.error('Error fetching users:', err);
+            return res.status(500).json({ error: 'Failed to fetch users' });
         }
 
         if (results.length === 0) {
-            return res.status(401).json({ error: 'Invalid username or employees', message: "Tên đăng nhập hoặc mật khẩu không đúng" });
+            return res.status(401).json({ error: 'Invalid username or users', message: "Tên đăng nhập hoặc mật khẩu không đúng" });
         }
 
         const employee = results[0];
@@ -56,7 +57,7 @@ router.post('/login', async (req, res) => {
             });
         } catch (err) {
             console.error('Error comparing passwords:', err);
-            return res.status(500).json({ error: 'Failed to log in employee' });
+            return res.status(500).json({ error: 'Failed to log in users' });
         }
     });
 });
