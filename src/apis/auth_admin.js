@@ -9,24 +9,24 @@ const JWT_SECRET = process.env.JWT_SECRET_KEY; // Thay thế bằng secret key c
 
 // Đăng nhập
 router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
     const user_type = 'Nhân Viên';
 
     // Kiểm tra các trường bắt buộc
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required' });
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Tìm nhân viên theo tên
-    const sql = 'SELECT * FROM users WHERE username = ? AND user_type = ?';
-    connection.query(sql, [username , user_type], async (err, results) => {
+    // Tìm nhân viên theo email
+    const sql = 'SELECT * FROM users WHERE email = ? AND user_type = ?';
+    connection.query(sql, [email , user_type], async (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
             return res.status(500).json({ error: 'Failed to fetch users' });
         }
 
         if (results.length === 0) {
-            return res.status(401).json({ error: 'Invalid username or users', message: "Tên đăng nhập hoặc mật khẩu không đúng" });
+            return res.status(401).json({ error: 'Invalid email or password', message: "Email hoặc mật khẩu không đúng" });
         }
 
         const employee = results[0];
@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
         try {
             const isMatch = await bcrypt.compare(password, employee.password);
             if (!isMatch) {
-                return res.status(401).json({ error: 'Invalid username or password', message: "Tên đăng nhập hoặc mật khẩu không đúng" });
+                return res.status(401).json({ error: 'Invalid email or password', message: "Email hoặc mật khẩu không đúng" });
             }
 
             // Tạo JWT token nếu cần

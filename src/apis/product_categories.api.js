@@ -47,6 +47,50 @@ router.get('/', (req, res) => {
     });
 });
 
+// *Lấy tất cả danh sách danh mục sản phẩm hoạt động
+router.get('/hoat_dong', (req, res) => {
+    const { search = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi
+    const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ? and status = ?';
+    
+    // SQL truy vấn để lấy danh sách promotion phân trang
+    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm
+    connection.query(sqlCount, [`%${search}%` , 1], (err, countResults) => {
+        if (err) {
+            console.error('Error counting product_categories:', err);
+            return res.status(500).json({ error: 'Failed to count product_categories' });
+        }
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách products cho trang hiện tại
+        connection.query(sql, [`%${search}%`, 1, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching product_categories:', err);
+                return res.status(500).json({ error: 'Failed to fetch product_categories' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list product_categories successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
+    });
+});
+
 // *Lấy thông tin danh mục sản phẩm theo id
 router.get('/:id', (req, res) => {
     const { id } = req.params;
