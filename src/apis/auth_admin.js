@@ -55,6 +55,8 @@ router.post('/login', async (req, res) => {
                     avatar: employee.avatar,
                     tel: employee.tel,
                     address: employee.address,
+                    salary: employee.salary,
+                    status: employee.status
                 },
                 accessToken: accessToken,
                 expiresIn: expiresIn
@@ -113,7 +115,7 @@ router.post('/forgot-password', (req, res) => {
                         <h2>Đặt lại mật khẩu</h2>
                         <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
                         <p>Vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu:</p>
-                        <a href="http://localhost:3000/forgot?token=${resetToken}" style="text-decoration: none;">
+                        <a href="http://localhost:5301/forgot?token=${resetToken}" style="text-decoration: none;">
                             <button style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
                                 Đặt lại mật khẩu
                             </button>

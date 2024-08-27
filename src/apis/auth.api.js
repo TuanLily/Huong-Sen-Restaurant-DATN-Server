@@ -141,12 +141,11 @@ router.post('/login', (req, res) => {
 
     connection.query(query, [email], (err, rows) => {
         if (err) {
-            console.error('Error fetching user:', err);
-            return res.status(500).send('Error fetching user');
+            return res.status(500).send('Lỗi không xác định');
         }
 
         if (rows.length === 0) {
-            return res.status(404).send('Invalid email or password');
+            return res.status(404).send('Tài khoản hoặc mật khẩu không đúng, vui lòng thử lại');
         }
 
         const user = rows[0];
@@ -154,11 +153,11 @@ router.post('/login', (req, res) => {
         bcrypt.compare(password, user.password, (err, isMatch) => {
             if (err) {
                 console.error('Error comparing passwords:', err);
-                return res.status(500).json({ status: 'error', message: 'Error comparing passwords' });
+                return res.status(500).json({ status: 'error', message: 'Lỗi không xác định' });
             }
 
             if (!isMatch) {
-                return res.status(401).json({ status: 'error', message: 'Invalid email or password' });
+                return res.status(401).json({ status: 'error', message: 'Tài khoản hoặc mật khẩu không đúng, vui lòng thử lại' });
             }
 
             // Tạo access token có thời hạn 1 giờ
