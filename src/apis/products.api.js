@@ -134,24 +134,29 @@ router.get('/ngung_hoat_dong', (req, res) => {
     });
 });
 
-// *Lấy thông tin sản phẩm theo id
-router.get('/:id', (req, res) => {
-    const { id } = req.params;
-    const sql = 'SELECT * FROM products WHERE id = ?';
-    connection.query(sql, [id], (err, results) => {
+// *Lấy thông tin sản phẩm theo slug
+router.get('/slug/:slug', (req, res) => {
+    const { slug } = req.params;
+    // Tạo SQL để lấy thông tin sản phẩm
+    const sql = 'SELECT * FROM products WHERE name = ?';
+    const decodedSlug = decodeURIComponent(slug).replace(/\.html$/, '');
+    const name = decodedSlug.split('-').join(' ');
+
+    connection.query(sql, [name], (err, results) => {
         if (err) {
-            console.error('Error fetching products:', err);
-            return res.status(500).json({ error: 'Failed to fetch products' });
+            console.error('Error fetching product by slug:', err);
+            return res.status(500).json({ error: 'Failed to fetch product by slug' });
         }
         if (results.length === 0) {
-            return res.status(404).json({ error: 'Products not found' });
+            return res.status(404).json({ error: 'Product not found' });
         }
         res.status(200).json({
-            message: 'Show information products successfully',
+            message: 'Show information product successfully',
             data: results[0]
         });
     });
 });
+
 
 // *Thêm sản phẩm mới
 router.post('/', (req, res) => {
