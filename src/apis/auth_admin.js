@@ -175,4 +175,48 @@ router.post('/change-password', (req, res) => {
     });
 });
 
+// Tìm quyền hạn 
+router.post('/role_permissions', async (req, res) => {
+    const { id } = req.body;
+
+    // Kiểm tra trường bắt buộc
+    if (!id) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Bước 1: Lấy thông tin người dùng để lấy role_id
+    const userSql = 'SELECT role_id FROM users WHERE id = ?';
+    connection.query(userSql, [id], (err, userResults) => {
+        if (err) {
+            console.error('Error fetching user:', err);
+            return res.status(500).json({ error: 'Failed to fetch user' });
+        }
+
+        if (userResults.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const roleId = userResults[0].role_id;
+
+        // Bước 2: Lấy quyền hạn theo role_id
+        const permissionsSql = `
+            SELECT p.* 
+            FROM role_permissions rp
+            JOIN permissions p ON rp.permission_id = p.id
+            WHERE rp.role_id = ?
+        `;
+        connection.query(permissionsSql, [roleId], (err, permissionsResults) => {
+            if (err) {
+                console.error('Error fetching permissions:', err);
+                return res.status(500).json({ error: 'Failed to fetch permissions' });
+            }
+
+            res.status(200).json({
+                message: 'Permissions retrieved successfully',
+                data: permissionsResults
+            });
+        });
+    });
+});
+
 module.exports = router;
