@@ -123,43 +123,78 @@ router.patch('/:id', (req, res) => {
 // *Xóa danh mục blog theo id
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
-    
-    // Bước 1: Tìm id của danh mục "Undefined"
-    const undefinedCategorySql = 'SELECT id FROM blog_categories WHERE name = "Undefined" LIMIT 1';
 
-    connection.query(undefinedCategorySql, (err, results) => {
+    // Bước 1: Kiểm tra xem có bài viết nào liên kết với danh mục không
+    const checkPostsSql = 'SELECT * FROM blogs WHERE blog_category_id = ?';
+    connection.query(checkPostsSql, [id], (err, results) => {
         if (err) {
-            console.error('Lỗi khi lấy danh mục không xác định:', err);
-            return res.status(500).json({ error: 'Không thể xử lý yêu cầu' });
-        }
-        if (results.length === 0) {
-            return res.status(500).json({ error: 'Danh mục không xác định không tồn tại' });
+            console.error('Lỗi khi kiểm tra bài viết:', err);
+            return res.status(500).json({ error: 'Không thể kiểm tra bài viết' });
         }
 
-        const undefinedCategoryId = results[0].id;
+        const hasPosts = results.length > 0;
 
-        // Bước 2: Chuyển tất cả bài viết sang danh mục "Undefined"
-        const updatePostsSql = 'UPDATE blogs SET blog_category_id = ? WHERE blog_category_id = ?';
-        connection.query(updatePostsSql, [undefinedCategoryId, id], (err) => {
-            if (err) {
-                console.error('Lỗi khi cập nhật bài viết:', err);
-                return res.status(500).json({ error: 'Không thể cập nhật bài viết' });
-            }
-
-            // Bước 3: Cập nhật trạng thái của danh mục
-            const updateCategoryStatusSql = 'UPDATE blog_categories SET status = 0 WHERE id = ?';
-            connection.query(updateCategoryStatusSql, [id], (err) => {
+        if (hasPosts) {
+            // Bước 2: Kiểm tra xem danh mục "Undefined" có tồn tại không
+            const checkUndefinedCategorySql = 'SELECT * FROM blog_categories WHERE name = ?';
+            connection.query(checkUndefinedCategorySql, ['Undefined'], (err, undefinedResults) => {
                 if (err) {
-                    console.error('Lỗi khi cập nhật trạng thái danh mục:', err);
-                    return res.status(500).json({ error: 'Không thể cập nhật trạng thái danh mục' });
+                    console.error('Lỗi khi kiểm tra danh mục "Undefined":', err);
+                    return res.status(500).json({ error: 'Không thể kiểm tra danh mục "Undefined"' });
                 }
 
-                res.status(200).json({ message: 'Xóa mềm danh mục blog thành công' });
+                let undefinedCategoryId;
+
+                // Nếu danh mục "Undefined" không tồn tại, tạo mới
+                if (undefinedResults.length === 0) {
+                    const createUndefinedCategorySql = 'INSERT INTO blog_categories (name, status) VALUES (?, ?)';
+                    connection.query(createUndefinedCategorySql, ['Undefined', 1], (err, newCategoryResults) => {
+                        if (err) {
+                            console.error('Lỗi khi tạo danh mục "Undefined":', err);
+                            return res.status(500).json({ error: 'Không thể tạo danh mục "Undefined"' });
+                        }
+                        undefinedCategoryId = newCategoryResults.insertId;
+                        reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
+                    });
+                } else {
+                    undefinedCategoryId = undefinedResults[0].id;
+                    reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
+                }
             });
-        });
+        } else {
+            // Nếu không có bài viết, xóa danh mục ngay lập tức
+            const deleteCategorySql = 'DELETE FROM blog_categories WHERE id = ?';
+            connection.query(deleteCategorySql, [id], (err) => {
+                if (err) {
+                    console.error('Lỗi khi xóa danh mục:', err);
+                    return res.status(500).json({ error: 'Không thể xóa danh mục' });
+                }
+                res.status(200).json({ message: 'Danh mục blog đã được xóa thành công' });
+            });
+        }
     });
 });
 
+// Hàm để chuyển bài viết và xóa danh mục
+function reassignPostsAndDeleteCategory(categoryId, undefinedCategoryId, res) {
+    // Cập nhật tất cả bài viết sang danh mục "Undefined"
+    const updatePostsSql = 'UPDATE blogs SET blog_category_id = ? WHERE blog_category_id = ?';
+    connection.query(updatePostsSql, [undefinedCategoryId, categoryId], (err) => {
+        if (err) {
+            console.error('Lỗi khi cập nhật bài viết:', err);
+            return res.status(500).json({ error: 'Không thể cập nhật bài viết' });
+        }
 
+        // Xóa danh mục cũ
+        const deleteCategorySql = 'DELETE FROM blog_categories WHERE id = ?';
+        connection.query(deleteCategorySql, [categoryId], (err) => {
+            if (err) {
+                console.error('Lỗi khi xóa danh mục:', err);
+                return res.status(500).json({ error: 'Không thể xóa danh mục' });
+            }
+            res.status(200).json({ message: 'Danh mục blog và bài viết đã được cập nhật thành công' });
+        });
+    });
+}
 
 module.exports = router;
