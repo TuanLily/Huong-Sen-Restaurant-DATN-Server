@@ -17,11 +17,12 @@ const autAdminApi = require("../apis/auth_admin");
 const commentBlogApi = require("../apis/comment_blog.api");
 const usersAPI = require("../apis/users.api");
 
+const chatbotApi = require("../apis/ChatBot/chatbot_api");
+
 const authenticateToken = require("../apis/authMiddleware");
 
 // Privated Routes
 router.use("/customer", authenticateToken, CustomerApi);
-router.use("/auth", AuthApi);
 router.use("/employee", authenticateToken, employeesApi);
 router.use("/blogs", authenticateToken, blogsApi);
 router.use("/reservations", authenticateToken, reservationsApi);
@@ -32,13 +33,18 @@ router.use("/role", authenticateToken, rolesApi);
 router.use("/category-blog", authenticateToken, categoryBlogsApi);
 router.use("/promotions", authenticateToken, promotionsApi);
 router.use("/tables", authenticateToken, tablesBlogsApi);
-router.use("/auth_admin", autAdminApi);
 router.use("/comment-blog", authenticateToken, commentBlogApi);
-router.use("/users", usersAPI);
 
 // Public Routes
 router.use("/public/category-product", productCategoriessApi);
 router.use("/public/product", productsApi);
 router.use("/public/blogs", blogsApi);
+
+// Normal Routes
+router.use("/chatbot", chatbotApi);
+router.use("/auth", AuthApi);
+router.use("/auth_admin", autAdminApi);
+router.use("/users", usersAPI);
+
 
 module.exports = router;
