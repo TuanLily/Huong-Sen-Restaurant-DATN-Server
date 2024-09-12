@@ -16,6 +16,7 @@ const tablesBlogsApi = require("../apis/tables.api");
 const autAdminApi = require("../apis/auth_admin");
 const commentBlogApi = require("../apis/comment_blog.api");
 const usersAPI = require("../apis/users.api");
+const role_permissionsApi = require("../apis/roles_permissions.api")
 
 const chatbotApi = require("../apis/ChatBot/chatbot_api");
 
@@ -30,6 +31,7 @@ router.use("/category-product", authenticateToken, productCategoriessApi);
 router.use("/product", authenticateToken, productsApi);
 router.use("/permissions", authenticateToken, permissionsApi);
 router.use("/role", authenticateToken, rolesApi);
+router.use("/roles_permissions", authenticateToken, role_permissionsApi);
 router.use("/category-blog", authenticateToken, categoryBlogsApi);
 router.use("/promotions", authenticateToken, promotionsApi);
 router.use("/tables", authenticateToken, tablesBlogsApi);

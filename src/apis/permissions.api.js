@@ -16,41 +16,20 @@ const checkDuplicatePermissionName = (name, callback) => {
 
 // *Lấy tất cả danh sách quyền hạn
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 5 } = req.query;
+    const sql = 'SELECT * FROM permissions';
 
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 5;
-    const offset = (pageNumber - 1) * size;
-
-    const sqlCount = 'SELECT COUNT(*) as total FROM permissions WHERE name LIKE ?';
-    const sql = 'SELECT * FROM permissions WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
-
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    connection.query(sql, (err, results) => {
         if (err) {
-            console.error('Lỗi khi đếm quyền hạn:', err);
-            return res.status(500).json({ error: 'Không thể đếm quyền hạn' });
+            console.error('Error fetching permissions:', err);
+            return res.status(500).json({ error: 'Unable to fetch permissions' });
         }
 
-        const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size);
-
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
-            if (err) {
-                console.error('Lỗi khi lấy danh sách quyền hạn:', err);
-                return res.status(500).json({ error: 'Không thể lấy danh sách quyền hạn' });
-            }
-
-            res.status(200).json({
-                message: 'Hiển thị danh sách quyền hạn thành công',
-                results,
-                totalCount,
-                totalPages,
-                currentPage: pageNumber
-            });
+        res.status(200).json({
+            message: 'Permissions fetched successfully',
+            results
         });
     });
 });
-
 // *Lấy thông tin quyền hạn theo id
 router.get('/:id', (req, res) => {
     const { id } = req.params;
