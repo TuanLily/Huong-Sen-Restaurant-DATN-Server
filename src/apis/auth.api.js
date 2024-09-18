@@ -186,7 +186,6 @@ router.post('/login', (req, res) => {
 
 router.post('/forgot-password', (req, res) => {
     const { email } = req.body;
-    console.log('Email nhận được:', email); // Thêm dòng log này
 
     const query = 'SELECT * FROM users WHERE email = ?';
     connection.query(query, [email], (err, rows) => {
@@ -242,14 +241,12 @@ router.post('/forgot-password', (req, res) => {
                 `,
             };
 
-            console.log('Sending email to:', email); // Thêm dòng log này
 
             transporter.sendMail(mailOptions, (error, info) => {
                 if (error) {
                     console.error('Lỗi khi gửi email:', error);
                     return res.status(500).json({ status: 500, message: 'Lỗi khi gửi email' });
                 } else {
-                    console.log('Email sent:', info.response); // Thêm dòng log này
                     return res.status(200).json({ status: 200, message: 'Email đặt lại mật khẩu đã được gửi' });
                 }
             });
@@ -260,9 +257,6 @@ router.post('/forgot-password', (req, res) => {
 
 router.post('/change-password', (req, res) => {
     const { token, newPassword } = req.body;
-
-    console.log('Received token:', token);
-    console.log('Received new password:', newPassword);
 
     const query = 'SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiration > ?';
     connection.query(query, [token, Date.now()], (err, rows) => {
@@ -284,7 +278,6 @@ router.post('/change-password', (req, res) => {
                 return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật mật khẩu tài khoản' });
             }
 
-            console.log('Đổi mật khẩu thành công cho token:', token);
             return res.status(200).json({ status: 'success', message: 'Đổi mật khẩu thành công' });
         });
     });

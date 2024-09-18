@@ -50,7 +50,6 @@ const chatbotPatterns = [
 function processChatbotMessage(message) {
     const normalizedMessage = normalizeVietnamese(message);
     const tokens = vietnameseTokenizer(normalizedMessage);
-    console.log("Normalized tokens:", tokens); // Log để debug
 
     let bestMatch = {
         pattern: null,
