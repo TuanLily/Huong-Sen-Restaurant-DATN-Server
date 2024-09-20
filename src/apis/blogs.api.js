@@ -141,7 +141,27 @@ router.patch("/:id", (req, res) => {
   });
 });
 
+router.get('/slug/:slug', (req, res) => {
+  const { slug } = req.params;
+  // Tạo SQL để lấy thông tin sản phẩm
+  const sql = 'SELECT * FROM blogs WHERE title = ?';
+  const decodedSlug = decodeURIComponent(slug).replace(/\.html$/, '');
+  const name = decodedSlug.split('-').join(' ');
 
+  connection.query(sql, [name], (err, results) => {
+      if (err) {
+          console.error('Error fetching blog by slug:', err);
+          return res.status(500).json({ error: 'Failed to fetch blog by slug' });
+      }
+      if (results.length === 0) {
+          return res.status(404).json({ error: 'Blog not found' });
+      }
+      res.status(200).json({
+          message: 'Show information blog successfully',
+          data: results[0]
+      });
+  });
+});
 
 // *Xóa blog theo id
 router.delete("/:id", (req, res) => {
