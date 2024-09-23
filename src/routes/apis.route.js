@@ -18,6 +18,7 @@ const commentBlogApi = require("../apis/comment_blog.api");
 const usersAPI = require("../apis/users.api");
 const role_permissionsApi = require("../apis/roles_permissions.api")
 const contactApi = require("../apis/contact.api")
+const reservations_t_admin = require("../apis/reservations_admin_t.api")
 
 const chatbotApi = require("../apis/ChatBot/chatbot_api");
 
@@ -37,6 +38,7 @@ router.use("/category-blog", authenticateToken, categoryBlogsApi);
 router.use("/promotions", authenticateToken, promotionsApi);
 router.use("/tables", authenticateToken, tablesBlogsApi);
 router.use("/comment-blog", authenticateToken, commentBlogApi);
+router.use("/reservations_t_admin", authenticateToken, reservations_t_admin);
 
 // Public Routes
 router.use("/public/category-product", productCategoriessApi);
