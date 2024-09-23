@@ -32,38 +32,56 @@ router.get('/:id', (req, res) => {
 
 // *Thêm đặt chỗ mới
 router.post('/', (req, res) => {
-    const { date_booking, time_in, time_out, count_people, status } = req.body;
-    const sql = 'INSERT INTO reservations (date_booking, time_in, time_out, count_people, status) VALUES (?, ?, ?, ?, ?)';
-    connection.query(sql, [date_booking, time_in, time_out, count_people, status], (err, results) => {
-        if (err) {
-            console.error('Error creating reservation:', err);
-            return res.status(500).json({ error: 'Failed to create reservation' });
+    const {
+        user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status
+    } = req.body;
+
+    const sql = `INSERT INTO reservations 
+                 (user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    connection.query(sql, [user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status], 
+        (err, results) => {
+            if (err) {
+                console.error('Error creating reservation:', err);
+                return res.status(500).json({ error: 'Failed to create reservation' });
+            }
+            res.status(201).json({ message: "Reservation created successfully", id: results.insertId });
         }
-        res.status(201).json({ message: "Reservation created successfully" });
-    });
+    );
 });
 
 // *Cập nhật đặt chỗ theo id bằng phương thức put
 router.put('/:id', (req, res) => {
     const { id } = req.params;
-    const { date_booking, time_in, time_out, count_people, status } = req.body;
-    const sql = 'UPDATE reservations SET date_booking = ?, time_in = ?, time_out = ?, count_people = ?, status = ? WHERE id = ?';
-    connection.query(sql, [date_booking, time_in, time_out, count_people, status, id], (err, results) => {
-        if (err) {
-            console.error('Error updating reservation:', err);
-            return res.status(500).json({ error: 'Failed to update reservation' });
+    const {
+        user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status
+    } = req.body;
+
+    const sql = `UPDATE reservations 
+                 SET user_id = ?, table_id = ?, promotion_id = ?, fullname = ?, tel = ?, email = ?, 
+                     reservation_date = ?, party_size = ?, note = ?, total_amount = ?, deposit = ?, status = ? 
+                 WHERE id = ?`;
+
+    connection.query(sql, [user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status, id], 
+        (err, results) => {
+            if (err) {
+                console.error('Error updating reservation:', err);
+                return res.status(500).json({ error: 'Failed to update reservation' });
+            }
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: 'Reservation not found' });
+            }
+            res.status(200).json({ message: "Reservation updated successfully" });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Reservation not found' });
-        }
-        res.status(200).json({ message: "Reservation updated successfully" });
-    });
+    );
 });
 
 // *Cập nhật đặt chỗ theo id bằng phương thức patch
 router.patch('/:id', (req, res) => {
     const { id } = req.params;
     const updates = req.body;
+
     const sql = 'UPDATE reservations SET ? WHERE id = ?';
     connection.query(sql, [updates, id], (err, results) => {
         if (err) {
