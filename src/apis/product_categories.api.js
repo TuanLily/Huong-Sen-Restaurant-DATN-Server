@@ -60,7 +60,7 @@ router.get('/hoat_dong', (req, res) => {
     const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ? and status = ?';
     
     // SQL truy vấn để lấy danh sách promotion phân trang
-    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? and status = ? ORDER BY id ASC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
     connection.query(sqlCount, [`%${search}%` , 1], (err, countResults) => {

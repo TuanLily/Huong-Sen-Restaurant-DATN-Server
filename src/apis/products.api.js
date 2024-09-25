@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
 
     // SQL truy vấn để lấy tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ?';
-    
+
     // SQL truy vấn để lấy danh sách promotion phân trang
     let sql = 'SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
@@ -57,12 +57,12 @@ router.get('/hoat_dong', (req, res) => {
 
     // SQL truy vấn để lấy tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
-    
+
     // SQL truy vấn để lấy danh sách promotion phân trang
     let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%` , 1], (err, countResults) => {
+    connection.query(sqlCount, [`%${search}%`, 1], (err, countResults) => {
         if (err) {
             console.error('Error counting products:', err);
             return res.status(500).json({ error: 'Failed to count products' });
@@ -101,7 +101,7 @@ router.get('/ngung_hoat_dong', (req, res) => {
 
     // SQL truy vấn để lấy tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
-    
+
     // SQL truy vấn để lấy danh sách promotion phân trang
     let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
@@ -134,6 +134,26 @@ router.get('/ngung_hoat_dong', (req, res) => {
     });
 });
 
+// *Hàm lấy danh sách sản phẩm theo date mới nhất
+router.get('/new', (req, res) => {
+    // SQL truy vấn để lấy danh sách sản phẩm mới nhất
+    const sql = 'SELECT * FROM products WHERE status = ? ORDER BY created_at DESC LIMIT ?';
+    
+    // Lấy danh sách sản phẩm với status là 1 và giới hạn là 8
+    connection.query(sql, [1, 8], (err, results) => {
+        if (err) {
+            console.error('Error fetching new products:', err);
+            return res.status(500).json({ error: 'Failed to fetch new products' });
+        }
+
+        // Trả về kết quả
+        res.status(200).json({
+            message: 'Show list of new products successfully',
+            results
+        });
+    });
+});
+
 // *Lấy thông tin sản phẩm theo slug
 router.get('/slug/:slug', (req, res) => {
     const { slug } = req.params;
@@ -160,7 +180,7 @@ router.get('/slug/:slug', (req, res) => {
 
 // *Thêm sản phẩm mới
 router.post('/', (req, res) => {
-    const { product_code , name , image , price , sale_price , description , status , category_id } = req.body;
+    const { product_code, name, image, price, sale_price, description, status, category_id } = req.body;
 
     if (!product_code) {
         return res.status(400).json({ error: 'Product_code is required' });
@@ -185,7 +205,7 @@ router.post('/', (req, res) => {
     }
 
     const sql = 'INSERT INTO products (product_code , name , image , price , sale_price , description , status , categories_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    connection.query(sql, [product_code , name , image , price , sale_price , description , status , category_id], (err, results) => {
+    connection.query(sql, [product_code, name, image, price, sale_price, description, status, category_id], (err, results) => {
         if (err) {
             console.error('Error creating products:', err);
             return res.status(500).json({ error: 'Failed to create products', customerId: results.insertId });
@@ -197,9 +217,9 @@ router.post('/', (req, res) => {
 // *Cập nhật sản phẩm id bằng phương thức put
 router.put('/:id', (req, res) => {
     const { id } = req.params
-    const { product_code , name , image , price , sale_price , description , status , category_id } = req.body;
+    const { product_code, name, image, price, sale_price, description, status, category_id } = req.body;
     const sql = 'UPDATE products SET product_code = ?, name = ?, image = ?, price = ?, sale_price = ?, description = ?, status = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [product_code , name , image , price , sale_price , description , status , category_id , id], (err, results) => {
+    connection.query(sql, [product_code, name, image, price, sale_price, description, status, category_id, id], (err, results) => {
         if (err) {
             console.error('Error updating products:', err);
             return res.status(500).json({ error: 'Failed to update products' });
