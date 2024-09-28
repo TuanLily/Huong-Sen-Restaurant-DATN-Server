@@ -23,18 +23,24 @@ const chatbotPatterns = [
     },
     {
         keywords: ['địa chỉ', 'ở đâu', 'chỗ nào'],
-        response: "Địa chỉ của chúng tôi là: 123 Đường ABC, Quận XYZ, Thành phố HCM.",
+        response: "Địa chỉ nhà hàng Hương Sen nằm ở số 82, đường Lê Bình, Quận Ninh Kiều, TP.Cần Thơ.",
+        endConversation: false
+
+    },
+    {
+        keywords: ['giờ hoạt động', 'nhà hàng mở khi nào', 'nhà hàng còn mở cửa không'],
+        response: "Nhà hàng chúng tôi mở cửa từ 8h-22h từ thứ 2 đến thứ 6 & từ 10h-23h thứ 7 và chủ nhật, mở cả trong các ngày lễ, Tết.",
         endConversation: false
 
     },
     {
         keywords: ['liên hệ', 'số điện thoại', 'email', 'gọi'],
-        response: "Bạn có thể liên hệ với chúng tôi qua số điện thoại 0123456789 hoặc email info@example.com.",
+        response: "Bạn có thể liên hệ với chúng tôi qua số điện thoại 078.546.8567 hoặc email contact.huongsen@gmail.com.",
         endConversation: false
 
     },
     {
-        keywords: ['gặp nhân viên', 'tư vấn', 'hỗ trợ'],
+        keywords: ['gặp nhân viên', 'tư vấn', 'hỗ trợ', 'gặp nhân viên tư vấn', 'gặp tư vấn viên'],
         response: "Để gặp nhân viên tư vấn, vui lòng để lại số điện thoại. Chúng tôi sẽ liên hệ lại trong thời gian sớm nhất.",
         endConversation: true
 
@@ -78,7 +84,7 @@ function processChatbotMessage(message) {
     }
 
     return {
-        response: "Đây là trả lời tự động. Xin lỗi, tôi không hiểu rõ ý của bạn. Bạn có thể hỏi về địa chỉ, thông tin liên hệ hoặc yêu cầu gặp nhân viên tư vấn.",
+        response: `Xin lỗi, tôi chỉ là chatbot hỗ trợ những vấn đề cơ bản như hỏi thông tin địa chỉ cửa hàng,...Nếu bạn cần được tư vấn kĩ hơn vui lòng nhập đúng từ khóa "gặp nhân viên" để được hỗ trợ`,
         endConversation: false
     };
 }
