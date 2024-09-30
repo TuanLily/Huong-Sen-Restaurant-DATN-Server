@@ -46,6 +46,7 @@ router.use("/statistical", authenticateToken, statistical);
 router.use("/public/category-product", productCategoriessApi);
 router.use("/public/product", productsApi);
 router.use("/public/blogs", blogsApi);
+router.use("/public/promotion", promotionsApi);
 
 // Normal Routes
 router.use("/chatbot", chatbotApi);
