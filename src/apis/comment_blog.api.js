@@ -57,11 +57,11 @@ router.get('/:id', (req, res) => {
 
 // *Thêm bình luận mới
 router.post('/', (req, res) => {
-    const { customer_id, content } = req.body;
+    const { blog_id, user_id ,  content } = req.body;
 
-const sql = 'INSERT INTO comment_blog (customer_id, content) VALUES (?,?)';
-        connection.query(sql, [customer_id, content], (err, results) => {
-            if (err) {
+const sql = 'INSERT INTO comment_blog (blog_id,user_id, content) VALUES (?,?,?)';
+        connection.query(sql, [blog_id ,user_id, content], (err, results) => {
+            if (err) { 
                 console.error('Lỗi khi tạo bình luận:', err);
                 return res.status(500).json({ error: 'Không thể tạo bình luận' });
             }
