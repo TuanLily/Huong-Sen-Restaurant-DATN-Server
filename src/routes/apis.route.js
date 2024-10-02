@@ -26,7 +26,7 @@ const chatbotApi = require("../apis/ChatBot/chatbot_api");
 const authenticateToken = require("../apis/authMiddleware");
 
 // Privated Routes
-router.use("/customer", authenticateToken, CustomerApi);
+router.use("/customer",  CustomerApi);
 router.use("/employee", authenticateToken, employeesApi);
 router.use("/blogs", authenticateToken, blogsApi);
 router.use("/reservations", authenticateToken, reservationsApi);
@@ -47,6 +47,8 @@ router.use("/public/category-product", productCategoriessApi);
 router.use("/public/product", productsApi);
 router.use("/public/blogs", blogsApi);
 router.use("/public/promotion", promotionsApi);
+router.use("/public/reservations", reservationsApi);
+
 
 // Normal Routes
 router.use("/chatbot", chatbotApi);
