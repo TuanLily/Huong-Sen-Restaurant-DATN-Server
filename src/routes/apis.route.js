@@ -20,6 +20,7 @@ const role_permissionsApi = require("../apis/roles_permissions.api")
 const contactApi = require("../apis/contact.api")
 const reservations_t_admin = require("../apis/reservations_admin_t.api")
 const statistical = require("../apis/statistical.api")
+const reservation_detail = require("../apis/reservation_detail.api")
 
 const chatbotApi = require("../apis/ChatBot/chatbot_api");
 
@@ -48,6 +49,7 @@ router.use("/public/product", productsApi);
 router.use("/public/blogs", blogsApi);
 router.use("/public/promotion", promotionsApi);
 router.use("/public/reservations", reservationsApi);
+router.use("/public/reservation_detail", reservation_detail)
 
 
 // Normal Routes
@@ -56,6 +58,5 @@ router.use("/auth", AuthApi);
 router.use("/auth_admin", autAdminApi);
 router.use("/users", usersAPI);
 router.use("/contact", contactApi);
-
 
 module.exports = router;
