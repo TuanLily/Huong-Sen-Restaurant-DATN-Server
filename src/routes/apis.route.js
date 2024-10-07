@@ -51,7 +51,6 @@ router.use("/public/promotion", promotionsApi);
 router.use("/public/reservations", reservationsApi);
 router.use("/public/reservation_detail", reservation_detail)
 
-
 // Normal Routes
 router.use("/chatbot", chatbotApi);
 router.use("/auth", AuthApi);
