@@ -8,7 +8,7 @@ const statusMapping = {
     1: 'Chờ xác nhận',
     2: 'Chờ thanh toán cọc',
     3: 'Đã thanh toán cọc',
-    4: 'Hoàn tất thanh toán',
+    4: 'Chờ thanh toán toàn bộ đơn',
     5: 'Hoàn thành đơn'
 };
 
@@ -47,7 +47,7 @@ router.get('/', (req, res) => {
             'Chờ xác nhận': 0, 
             'Chờ thanh toán cọc': 0, 
             'Đã thanh toán cọc': 0, 
-            'Hoàn tất thanh toán': 0, 
+            'Chờ thanh toán toàn bộ đơn': 0, 
             'Hoàn thành đơn': 0
         }));
 

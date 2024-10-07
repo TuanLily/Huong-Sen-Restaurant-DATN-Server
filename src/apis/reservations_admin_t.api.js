@@ -57,6 +57,71 @@ router.get('/', (req, res) => {
     });
 });
 
+// Lấy tất cả đặt bàn theo id người dùng
+router.get('/myBooking/:user_id', (req, res) => {
+    const { user_id } = req.params;
+    const { searchName = '', searchPhone = '', searchEmail = '', status = '', page = 1, pageSize = 10 } = req.query;
+
+    // Đảm bảo page và pageSize là số nguyên
+    const pageNumber = parseInt(page, 10) || 1;
+    const size = parseInt(pageSize, 10) || 10;
+    const offset = (pageNumber - 1) * size;
+
+    // SQL truy vấn để lấy tổng số bản ghi (thêm điều kiện user_id)
+    const sqlCount = `
+        SELECT COUNT(*) as total 
+        FROM reservations 
+        WHERE fullname LIKE ? 
+        AND tel LIKE ? 
+        AND email LIKE ? 
+        AND status LIKE ? 
+        AND user_id = ?
+    `;
+
+    // SQL truy vấn để lấy danh sách reservations phân trang (thêm điều kiện user_id)
+    const sql = `
+        SELECT r.*, t.number AS tableName 
+        FROM reservations r
+        LEFT JOIN tables t ON r.table_id = t.id
+        WHERE r.fullname LIKE ? 
+        AND r.tel LIKE ? 
+        AND r.email LIKE ? 
+        AND r.status LIKE ? 
+        AND r.user_id = ?
+        ORDER BY r.id DESC 
+        LIMIT ? OFFSET ?
+    `;
+
+    // Đếm tổng số bản ghi khớp với tìm kiếm và user_id
+    connection.query(sqlCount, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`, user_id], (err, countResults) => {
+        if (err) {
+            console.error('Error counting reservations:', err);
+            return res.status(500).json({ error: 'Failed to count reservations' });
+        }
+
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+
+        // Lấy danh sách reservations cho trang hiện tại và khớp user_id
+        connection.query(sql, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`, user_id, size, offset], (err, results) => {
+            if (err) {
+                console.error('Error fetching reservations:', err);
+                return res.status(500).json({ error: 'Failed to fetch reservations' });
+            }
+
+            // Trả về kết quả với thông tin phân trang
+            res.status(200).json({
+                message: 'Show list reservations successfully',
+                results,
+                totalCount,
+                totalPages,
+                currentPage: pageNumber
+            });
+        });
+    });
+});
+
+
 // Lấy đặt bàn theo id
 router.get('/:id', (req, res) => {
     const { id } = req.params;
