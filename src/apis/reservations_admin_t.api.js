@@ -237,91 +237,84 @@ router.delete('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-    const reservation = req.body; // Đối tượng chứa thông tin đặt bàn
-    console.log(reservation);
+    const {
+        fullname, email, tel, reservation_date,
+        status, deposit, partySize, notes, totalAmount, products
+    } = req.body; // Đối tượng chứa thông tin đặt bàn
 
-    // Các trường cần được chèn vào bảng reservations
-    const { fullname, email, tel, reservation_date, status, deposit, partySize, notes, totalAmount, products } = reservation;
+    console.log(req.body);
 
-    // Câu truy vấn SQL để chèn thông tin đặt bàn vào bảng reservations
     const sqlReservation = `
         INSERT INTO reservations (fullname, email, tel, reservation_date, status, deposit, party_size, note, total_amount)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    // Bắt đầu một giao dịch (transaction)
     connection.beginTransaction((err) => {
         if (err) {
             console.error('Lỗi khi bắt đầu giao dịch:', err);
-            return res.status(500).json({ error: 'Lỗi khi bắt đầu giao dịch' });
+            return res.status(500).json({ message: 'Lỗi khi bắt đầu giao dịch' });
         }
 
-        // Thực hiện chèn thông tin khách hàng vào bảng reservations
         connection.query(sqlReservation, [fullname, email, tel, reservation_date, status, deposit, partySize, notes, totalAmount], (err, results) => {
             if (err) {
-                return connection.rollback(() => {
-                    console.error('Lỗi khi tạo đặt bàn:', err);
-                    return res.status(500).json({ error: 'Không thể tạo đặt bàn' });
-                });
+                return rollbackTransaction(res, 'Không thể tạo đặt bàn', err);
             }
 
             const reservationId = results.insertId; // Lấy ID của reservation vừa thêm
-
-            // Nếu có sản phẩm trong đặt bàn, thêm từng sản phẩm vào bảng reservation_details
             if (products && products.length > 0) {
-                const sqlProduct = `
-                    INSERT INTO reservation_details (reservation_id, product_id, quantity, price)
-                    VALUES (?, ?, ?, ?)
-                `;
-
-                // Sử dụng Promise để đảm bảo tất cả các sản phẩm đều được thêm vào
-                const productPromises = products.map(product => {
-                    return new Promise((resolve, reject) => {
-                        connection.query(sqlProduct, [reservationId, product.product_id, product.quantity, product.price], (err, result) => {
-                            if (err) {
-                                return reject(err);
-                            }
-                            resolve(result);
-                        });
-                    });
-                });
-
-                // Thực hiện tất cả các truy vấn chèn sản phẩm
-                Promise.all(productPromises)
-                    .then(() => {
-                        // Commit giao dịch khi tất cả các truy vấn thành công
-                        connection.commit((err) => {
-                            if (err) {
-                                return connection.rollback(() => {
-                                    console.error('Lỗi khi commit giao dịch:', err);
-                                    return res.status(500).json({ error: 'Lỗi khi commit giao dịch' });
-                                });
-                            }
-                            res.status(201).json({ message: 'Đặt bàn thành công' });
-                        });
-                    })
-                    .catch(err => {
-                        // Rollback nếu có lỗi xảy ra
-                        return connection.rollback(() => {
-                            console.error('Lỗi khi thêm sản phẩm:', err);
-                            return res.status(500).json({ error: 'Không thể thêm sản phẩm' });
-                        });
-                    });
+                addProductsToReservation(reservationId, products, res);
             } else {
-                // Nếu không có sản phẩm nào, commit ngay lập tức
-                connection.commit((err) => {
-                    if (err) {
-                        return connection.rollback(() => {
-                            console.error('Lỗi khi commit giao dịch:', err);
-                            return res.status(500).json({ error: 'Lỗi khi commit giao dịch' });
-                        });
-                    }
-                    res.status(201).json({ message: 'Đặt bàn thành công' });
-                });
+                commitTransaction(res, 'Đặt bàn thành công');
             }
         });
     });
 });
+
+const addProductsToReservation = (reservationId, products, res) => {
+    const sqlProduct = `
+        INSERT INTO reservation_details (reservation_id, product_id, quantity, price)
+        VALUES (?, ?, ?, ?)
+    `;
+
+    let queries = products.map(product => new Promise((resolve, reject) => {
+        connection.query(sqlProduct, [reservationId, product.product_id, product.quantity, product.price], (err) => {
+            if (err) {
+                console.error('Lỗi khi thêm sản phẩm:', err);
+                return reject(err);
+            }
+            resolve();
+        });
+    }));
+
+    Promise.allSettled(queries)
+        .then(results => {
+            const errorOccurred = results.some(result => result.status === 'rejected');
+            if (errorOccurred) {
+                return rollbackTransaction(res, 'Không thể thêm một hoặc nhiều sản phẩm');
+            }
+            commitTransaction(res, 'Đặt bàn thành công');
+        });
+};
+
+const rollbackTransaction = (res, message, error) => {
+    connection.rollback(() => {
+        console.error(message, error);
+        res.status(500).json({ message }); // Chỉ trả về tin nhắn
+    });
+};
+
+const commitTransaction = (res, message) => {
+    connection.commit((err) => {
+        if (err) {
+            return rollbackTransaction(res, 'Lỗi khi commit giao dịch', err);
+        }
+        res.status(201).json({ message }); // Chỉ trả về tin nhắn
+    });
+};
+
+
+
+
 
 
 module.exports = router;
