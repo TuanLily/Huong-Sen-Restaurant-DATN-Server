@@ -21,6 +21,7 @@ const contactApi = require("../apis/contact.api")
 const reservations_t_admin = require("../apis/reservations_admin_t.api")
 const statistical = require("../apis/statistical.api")
 const reservation_detail = require("../apis/reservation_detail.api")
+const paymentApi = require("../apis/payment.api")
 
 const chatbotApi = require("../apis/ChatBot/chatbot_api");
 
@@ -49,7 +50,9 @@ router.use("/public/product", productsApi);
 router.use("/public/blogs", blogsApi);
 router.use("/public/promotion", promotionsApi);
 router.use("/public/reservations", reservationsApi);
-router.use("/public/reservation_detail", reservation_detail)
+router.use("/public/reservation_detail", reservation_detail);
+router.use("/public/payment", paymentApi);
+
 
 // Normal Routes
 router.use("/chatbot", chatbotApi);
