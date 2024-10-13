@@ -33,10 +33,12 @@ router.get('/:id', (req, res) => {
 // *Thêm đặt chỗ mới
 router.post('/', (req, res) => {
     const {
-        user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit
+        user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount
     } = req.body;
 
-    const status = 1 ;
+    const status = 1;
+    
+    const deposit = total_amount * 0.3;
 
     const sql = `INSERT INTO reservations 
                  (user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
