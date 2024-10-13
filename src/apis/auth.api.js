@@ -66,6 +66,60 @@ router.post('/google', async (req, res) => {
     }
 });
 
+// Đăng ký hoặc đăng nhập bằng tài khoản Facebook
+router.post('/facebook', async (req, res) => {
+    const { fullname, email, avatar } = req.body;
+
+    const defaultTel = '';
+    const defaultAddress = '';
+    const defaultPassword = '';
+
+    try {
+        // Kiểm tra xem email đã tồn tại hay chưa
+        const checkEmailSql = 'SELECT * FROM users WHERE email = ?';
+        connection.query(checkEmailSql, [email], (checkErr, checkResult) => {
+            if (checkErr) {
+                return res.status(500).json({ error: 'Database error', details: checkErr });
+            }
+
+            if (checkResult.length > 0) {
+                // Nếu email đã tồn tại, đăng nhập và tạo accessToken
+                const user = checkResult[0];
+                const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.fullname, avatar: user.avatar }, JWT_SECRET, { expiresIn: '3h' });
+
+                return res.json({
+                    success: true,
+                    user,
+                    accessToken
+                });
+            }
+
+            // Nếu email chưa tồn tại, tiến hành thêm người dùng mới
+            const insertSql = `
+                INSERT INTO users (fullname, email, avatar, tel, address, password) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            `;
+            connection.query(insertSql, [fullname, email, avatar, defaultTel, defaultAddress, defaultPassword], (insertErr, result) => {
+                if (insertErr) {
+                    return res.status(500).json({ error: 'Database error', details: insertErr });
+                }
+
+                const user = { id: result.insertId, fullname, email, avatar };
+                const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.fullname, avatar: user.avatar }, JWT_SECRET, { expiresIn: '3h' });
+
+                res.json({
+                    success: true,
+                    user,
+                    accessToken
+                });
+            });
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error', details: error });
+    }
+});
+
+
 
 // Kiểm tra email tồn tại
 router.get('/check-email', (req, res) => {
