@@ -235,18 +235,31 @@ router.delete('/:id', (req, res) => {
         });
     });
 });
+router.get('/existing-reservations', (req, res) => {
+    const sql = 'SELECT reservation_code FROM reservations'; // Thay đổi tên bảng theo cấu trúc của bạn
+    db.query(sql, (error, results) => {
+        if (error) {
+            console.error('Error fetching existing reservations:', error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        // Lấy chỉ các reservation_code
+        const existingCodes = results.map(row => row.reservation_code);
+        res.json(existingCodes); // Trả về danh sách mã đã tồn tại
+    });
+});
 
 router.post('/', (req, res) => {
     const {
-        fullname, email, tel, reservation_date,
+        reservation_code, fullname, email, tel, reservation_date, 
         status, deposit, partySize, notes, totalAmount, products
     } = req.body; // Đối tượng chứa thông tin đặt bàn
 
     console.log(req.body);
 
     const sqlReservation = `
-        INSERT INTO reservations (fullname, email, tel, reservation_date, status, deposit, party_size, note, total_amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO reservations (	reservation_code ,fullname, email, tel, reservation_date, status, deposit, party_size, note, total_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)
     `;
 
     connection.beginTransaction((err) => {
@@ -255,7 +268,7 @@ router.post('/', (req, res) => {
             return res.status(500).json({ message: 'Lỗi khi bắt đầu giao dịch' });
         }
 
-        connection.query(sqlReservation, [fullname, email, tel, reservation_date, status, deposit, partySize, notes, totalAmount], (err, results) => {
+        connection.query(sqlReservation, [	reservation_code, fullname, email, tel, reservation_date, status, deposit, partySize, notes, totalAmount], (err, results) => {
             if (err) {
                 return rollbackTransaction(res, 'Không thể tạo đặt bàn', err);
             }
