@@ -54,6 +54,7 @@ router.use("/public/reservation_detail", reservation_detail);
 router.use("/public/payment", paymentApi);
 router.use("/public/reservation_detail", reservation_detail)
 router.use("/public/table", tablesBlogsApi)
+router.use("/public/comment-blog", commentBlogApi);
 
 
 // Normal Routes
