@@ -36,15 +36,20 @@ router.post('/', (req, res) => {
         user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount
     } = req.body;
 
+    const reservation_code = `HS-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const status = 1;
     
-    const deposit = total_amount * 0.3;
+    const validTotalAmount = total_amount ? parseFloat(total_amount) : 0;
+
+    // Calculate deposit only if total_amount is valid
+    const deposit = validTotalAmount * 0.3;
 
     const sql = `INSERT INTO reservations 
-                 (user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                 (reservation_code,user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
+                 VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    connection.query(sql, [user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status], 
+    connection.query(sql, [reservation_code, user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status], 
         (err, results) => {
             if (err) {
                 console.error('Error creating reservation:', err);
