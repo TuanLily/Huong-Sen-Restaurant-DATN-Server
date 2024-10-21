@@ -5,8 +5,8 @@ const connection = require('../../index');
 // Bảng ánh xạ giữa số trạng thái và tên trạng thái
 const statusMapping = {
     0: 'Hủy đơn',
-    1: 'Chờ xác nhận',
-    2: 'Chờ thanh toán cọc',
+    1: 'Chờ thanh toán cọc',
+    2: 'Hết hạn thanh toán cọc',
     3: 'Đã thanh toán cọc',
     4: 'Chờ thanh toán toàn bộ đơn',
     5: 'Hoàn thành đơn'
@@ -44,8 +44,8 @@ router.get('/', (req, res) => {
         // Khởi tạo số lượng đơn hàng theo trạng thái (tên) cho từng tháng
         const revenueByMonthAndStatus = Array.from({ length: 12 }, () => ({
             'Hủy đơn': 0, 
-            'Chờ xác nhận': 0, 
             'Chờ thanh toán cọc': 0, 
+            'Hết hạn thanh toán cọc': 0, 
             'Đã thanh toán cọc': 0, 
             'Chờ thanh toán toàn bộ đơn': 0, 
             'Hoàn thành đơn': 0
