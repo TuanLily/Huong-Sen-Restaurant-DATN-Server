@@ -4,7 +4,7 @@ const connection = require('../../index');
 
 // Lấy tất cả đặt bàn
 router.get('/', (req, res) => {
-    const { searchName = '', searchPhone = '', searchEmail = '', status = '', page = 1, pageSize = 10 } = req.query;
+    const { searchName = '', searchPhone = '', searchEmail = '', status = '', reservation_code = '', page = 1, pageSize = 10 } = req.query;
 
     // Đảm bảo page và pageSize là số nguyên
     const pageNumber = parseInt(page, 10) || 1;
@@ -12,7 +12,8 @@ router.get('/', (req, res) => {
     const offset = (pageNumber - 1) * size;
 
     // SQL truy vấn để lấy tổng số bản ghi
-    const sqlCount = 'SELECT COUNT(*) as total FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ? AND reservation_code LIKE ?';
+
 
     // SQL truy vấn để lấy danh sách reservations phân trang
     // let sql = 'SELECT * FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
@@ -24,12 +25,13 @@ router.get('/', (req, res) => {
         AND r.tel LIKE ? 
         AND r.email LIKE ? 
         AND r.status LIKE ? 
+        AND r.reservation_code LIKE ? 
         ORDER BY r.id DESC 
         LIMIT ? OFFSET ?
     `;
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`], (err, countResults) => {
+    connection.query(sqlCount, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`, `%${reservation_code}%`], (err, countResults) => {
         if (err) {
             console.error('Error counting reservations:', err);
             return res.status(500).json({ error: 'Failed to count reservations' });
@@ -39,7 +41,7 @@ router.get('/', (req, res) => {
         const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
 
         // Lấy danh sách reservations cho trang hiện tại
-        connection.query(sql, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`, size, offset], (err, results) => {
+        connection.query(sql, [`%${searchName}%`, `%${searchPhone}%`, `%${searchEmail}%`, `%${status}%`, `%${reservation_code}%`, size, offset], (err, results) => {
             if (err) {
                 console.error('Error fetching reservations:', err);
                 return res.status(500).json({ error: 'Failed to fetch reservations' });
