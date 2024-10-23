@@ -22,6 +22,8 @@ const reservations_t_admin = require("../apis/reservations_admin_t.api")
 const statistical = require("../apis/statistical.api")
 const reservation_detail = require("../apis/reservation_detail.api")
 const paymentApi = require("../apis/payment.api")
+const membershipApi = require("../apis/membership.api")
+const membershipTiersApi = require("../apis/membership_tiers.ap")
 
 const chatbotApi = require("../apis/ChatBot/chatbot_api");
 
@@ -55,6 +57,8 @@ router.use("/public/payment", paymentApi);
 router.use("/public/reservation_detail", reservation_detail)
 router.use("/public/table", tablesBlogsApi)
 router.use("/public/comment-blog", commentBlogApi);
+router.use("/public/membership", membershipApi);
+router.use("/public/membership_tiers", membershipTiersApi);
 
 
 // Normal Routes

@@ -28,18 +28,25 @@ router.post('/google', async (req, res) => {
             if (checkErr) {
                 return res.status(500).json({ error: 'Database error', details: checkErr });
             }
-
             if (checkResult.length > 0) {
                 // Nếu email đã tồn tại, đăng nhập và tạo accessToken
                 const user = checkResult[0];
-                const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.fullname, avatar: user.avatar }, JWT_SECRET, { expiresIn: '3h' });
+                const accessToken = jwt.sign(
+                    { id: user.id, email: user.email, name: user.fullname, avatar: user.avatar },
+                    JWT_SECRET,
+                    { expiresIn: '3h' }
+                );
+
+                // Tạo một đối tượng mới không có trường password
+                const { password, ...userWithoutPassword } = user;
 
                 return res.json({
                     success: true,
-                    user,
+                    user: userWithoutPassword, // Trả về đối tượng người dùng không có mật khẩu
                     accessToken
                 });
             }
+
 
             // Nếu email chưa tồn tại, tiến hành thêm người dùng mới
             const insertSql = `
@@ -85,11 +92,18 @@ router.post('/facebook', async (req, res) => {
             if (checkResult.length > 0) {
                 // Nếu email đã tồn tại, đăng nhập và tạo accessToken
                 const user = checkResult[0];
-                const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.fullname, avatar: user.avatar }, JWT_SECRET, { expiresIn: '3h' });
+                const accessToken = jwt.sign(
+                    { id: user.id, email: user.email, name: user.fullname, avatar: user.avatar },
+                    JWT_SECRET,
+                    { expiresIn: '3h' }
+                );
+
+                // Tạo một đối tượng mới không có trường password
+                const { password, ...userWithoutPassword } = user;
 
                 return res.json({
                     success: true,
-                    user,
+                    user: userWithoutPassword, // Trả về đối tượng người dùng không có mật khẩu
                     accessToken
                 });
             }
@@ -160,12 +174,8 @@ router.post('/register', async (req, res) => {
     // Kiểm tra email đã tồn tại chưa
     const checkEmailSql = 'SELECT * FROM users WHERE email = ?';
     connection.query(checkEmailSql, [email], async (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: 'Lỗi không xác định', details: err });
-        }
-        if (results.length > 0) {
-            return res.status(400).json({ message: 'Email đã được sử dụng' });
-        }
+        if (err) return res.status(500).json({ error: 'Lỗi kiểm tra email.', details: err });
+        if (results.length > 0) return res.status(400).json({ message: 'Email đã tồn tại.' });
 
         try {
             // Mã hóa mật khẩu
@@ -173,17 +183,31 @@ router.post('/register', async (req, res) => {
 
             // Tạo người dùng mới
             const insertUserSql = 'INSERT INTO users (fullname, email, avatar, tel, address, password, user_type) VALUES (?, ?, ?, ?, ?, ?, ?)';
-            connection.query(insertUserSql, [fullname, email, avatar, tel, address, hashedPassword, defaultUserType], (err, results) => {
-                if (err) {
-                    return res.status(500).json({ error: 'Lỗi không xác định', details: err });
-                }
+            connection.query(insertUserSql, [fullname, email, avatar, tel, address, hashedPassword, 'Nhân Viên'], (err, userResults) => {
+                if (err) return res.status(500).json({ error: 'Lỗi khi tạo tài khoản.', details: err });
 
-                res.status(201).json({
-                    message: 'Đăng ký tài khoản thành công!',
+                const newUserId = userResults.insertId;
+
+                // Lấy loại thẻ "Mới" từ bảng membership_tiers
+                const defaultMembershipTierSql = 'SELECT id FROM membership_tiers WHERE name = ?';
+                connection.query(defaultMembershipTierSql, ['Mới'], (err, tierResults) => {
+                    if (err || tierResults.length === 0) return res.status(500).json({ error: 'Không tìm thấy loại thẻ "Mới".' });
+
+                    const defaultTierId = tierResults[0].id;
+
+                    // Tạo thẻ thành viên cho người dùng với loại thẻ "Mới"
+                    const insertMembershipCardSql = 'INSERT INTO membership_cards (user_id, membership_card_id, point) VALUES (?, ?, ?)';
+                    connection.query(insertMembershipCardSql, [newUserId, defaultTierId, 0], (err, cardResults) => {
+                        if (err) return res.status(500).json({ error: 'Lỗi khi tạo thẻ thành viên.', details: err });
+
+                        res.status(201).json({
+                            message: 'Đăng ký tài khoản thành công và cấp thẻ "Mới".',
+                        });
+                    });
                 });
             });
         } catch (error) {
-            res.status(500).json({ message: 'Đã xảy ra lỗi khi đăng ký', error });
+            res.status(500).json({ message: 'Lỗi trong quá trình đăng ký.', error });
         }
     });
 });
@@ -204,6 +228,8 @@ router.post('/login', (req, res) => {
 
         const user = rows[0];
 
+        console.log("Check user:: ", user)
+
         bcrypt.compare(password, user.password, (err, isMatch) => {
             if (err) {
                 console.error('Error comparing passwords:', err);
@@ -221,20 +247,18 @@ router.post('/login', (req, res) => {
                 { expiresIn: '1h' }
             );
 
+            // Tạo đối tượng người dùng không có trường password
+            const { password, ...userWithoutPassword } = user;
+
             return res.json({
                 message: "Đăng nhập thành công!",
-                user: {
-                    fullname: user.fullname,
-                    email: user.email,
-                    tel: user.tel,
-                    avatar: user.avatar,
-                    address: user.address,
-                },
+                user: userWithoutPassword,
                 accessToken: token
             });
         });
     });
 });
+
 
 // Quên mật khẩu
 
