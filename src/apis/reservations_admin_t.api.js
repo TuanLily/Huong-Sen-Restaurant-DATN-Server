@@ -192,49 +192,152 @@ router.get('/reservation_details/:reservation_id', (req, res) => {
 });
 
 
-// *Cập nhật trạng thái theo id bằng phương thức patch
-router.patch('/:id', (req, res) => {
-    const { id } = req.params;
-    const updates = req.body;
-    const sql = 'UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-    connection.query(sql, [updates, id], (err, results) => {
+// Hàm cập nhật hoặc thêm sản phẩm
+const upsertProducts = async (reservationId, products) => {
+    // Kiểm tra nếu không có sản phẩm nào được cung cấp
+    if (!Array.isArray(products) || products.length === 0) {
+        console.warn("Không có sản phẩm nào để cập nhật.");
+        return; // Bỏ qua nếu không có sản phẩm
+    }
+
+    console.log("ID đặt chỗ:", reservationId);
+    console.log("Danh sách sản phẩm:", products);
+
+    try {
+        // Lấy danh sách sản phẩm hiện có cho đơn đặt bàn
+        const result = await connection.query(
+            `SELECT product_id, quantity, price FROM reservation_details WHERE reservation_id = ?`,
+            [reservationId]
+        );
+        console.log("Kết quả truy vấn:", result);
+
+
+
+        // Đảm bảo kết quả là một mảng
+        const existingProducts = Array.isArray(result) ? result[0] : [];
+console.log('existingProducts: ',existingProducts);
+
+        // Tạo một đối tượng để dễ dàng kiểm tra và cập nhật
+        const existingProductMap = {};
+        existingProducts.forEach(product => {
+            existingProductMap[product.product_id] = product;
+        });
+
+
+        console.log("Check existingProductMap:::", existingProductMap)
+
+        // Tạo mảng các truy vấn cho từng sản phẩm
+        const queries = products.map(async (product) => {
+            const { product_id, quantity, price } = product;
+
+            // Kiểm tra dữ liệu sản phẩm
+            if (product_id === undefined || quantity === undefined || price === undefined) {
+                console.warn(`Thiếu dữ liệu sản phẩm:`, product);
+                return; // Bỏ qua sản phẩm nếu thiếu dữ liệu
+            }
+
+            console.log("Đang xử lý sản phẩm:", product);
+
+            if (existingProductMap[product_id]) {
+                // Nếu sản phẩm đã tồn tại, cộng dồn số lượng và giá
+                const existingProduct = existingProductMap[product_id];
+                console.log("existingProduct", existingProduct)
+                const newQuantity = existingProduct.quantity + quantity;
+                console.log("newQuantity", newQuantity)
+
+                await connection.query(
+                    `UPDATE reservation_details SET quantity = ? WHERE reservation_id = ? AND product_id = ?`,
+                    [newQuantity, newPrice, reservationId, product_id]
+                );
+                console.log("Cập nhật sản phẩm tồn tại:", product);
+            } else {
+                // Nếu sản phẩm chưa tồn tại, thêm mới vào reservation_details
+                await connection.query(
+                    `INSERT INTO reservation_details (reservation_id, product_id, quantity, price) VALUES (?, ?, ?, ?)`,
+                    [reservationId, product_id, quantity, price]
+                );
+                console.log("Thêm mới sản phẩm:", product);
+            }
+        });
+
+        // Đợi tất cả các truy vấn sản phẩm hoàn thành
+        await Promise.all(queries);
+        console.log("Tất cả sản phẩm đã được cập nhật.");
+    } catch (error) {
+        console.error("Lỗi khi cập nhật sản phẩm:", error);
+        throw new Error("Lỗi khi truy vấn sản phẩm."); // Ném lỗi để có thể xử lý ở nơi gọi
+    }
+};
+
+
+// Route PATCH để cập nhật đặt chỗ
+router.patch('/:id', async (req, res) => {
+    const reservationId = req.params.id;
+    const {
+        fullname, tel, email, reservation_date,
+        party_size, note, total_amount, deposit,
+        status, products,
+    } = req.body;
+
+    try {
+        // Cập nhật thông tin đặt chỗ
+        const updateReservationQuery = `
+            UPDATE reservations
+            SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
+                party_size = ?, note = ?, total_amount = ?, deposit = ?, status = ?
+            WHERE id = ?`;
+
+        await connection.query(updateReservationQuery, [
+            fullname, tel, email, reservation_date, party_size,
+            note, total_amount, deposit, status, reservationId,
+        ]);
+
+        // Nếu có sản phẩm thì xử lý cập nhật hoặc thêm mới
+        if (Array.isArray(products) && products.length > 0) {
+            await upsertProducts(reservationId, products);
+        }
+
+        res.status(200).json({ message: 'Cập nhật thông tin đặt chỗ thành công' });
+    } catch (error) {
+        console.error('Lỗi khi cập nhật đặt chỗ:', error);
+        res.status(500).json({ message: 'Có lỗi xảy ra', error: error.message });
+    }
+});
+
+
+
+
+
+// *Xóa reservations theo id
+router.delete('/:reservationId/:productId', (req, res) => {
+    const { reservationId, productId } = req.params;
+    const sql = 'DELETE FROM reservation_details WHERE reservation_id = ? AND product_id = ?';
+    
+    connection.query(sql, [reservationId, productId], (err, results) => {
         if (err) {
-            console.error('Error partially updating reservations:', err);
-            return res.status(500).json({ error: 'Failed to partially update reservations' });
+            console.error('Error deleting product:', err);
+            return res.status(500).json({ error: 'Failed to delete product from reservation' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'Reservations not found' });
+            return res.status(404).json({ error: 'Product not found in the reservation' });
         }
-        res.status(200).json({ message: "Reservations update successfully" });
+        res.status(200).json({ message: 'Product deleted successfully from reservation' });
     });
 });
 
-// *Xóa reservations theo id
-router.delete('/:id', (req, res) => {
-    const { id } = req.params;
-
-    // Bước 1: Xóa tất cả các chi tiết đặt bàn có reservation_id trùng với id
-    const deleteDetailsSql = 'DELETE FROM reservation_details WHERE reservation_id = ?';
-
-    connection.query(deleteDetailsSql, [id], (err) => {
+router.delete('/:reservationId/:productId', (req, res) => {
+    const { reservationId, productId } = req.params;
+    const sql = 'DELETE FROM reservation_details WHERE reservation_id = ? AND product_id = ?';
+    
+    connection.query(sql, [reservationId, productId], (err, results) => {
         if (err) {
-            console.error('Error deleting reservation details:', err);
-            return res.status(500).json({ error: 'Failed to delete reservation details' });
+            console.error('Error deleting product:', err);
+            return res.status(500).json({ error: 'Failed to delete product from reservation' });
         }
-
-        // Bước 2: Xóa bản ghi trong bảng reservations
-        const deleteReservationSql = 'DELETE FROM reservations WHERE id = ?';
-        
-        connection.query(deleteReservationSql, [id], (err, results) => {
-            if (err) {
-                console.error('Error deleting reservations:', err);
-                return res.status(500).json({ error: 'Failed to delete reservations' });
-            }
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ error: 'Reservations not found' });
-            }
-            res.status(200).json({ message: 'Reservations and related details deleted successfully' });
-        });
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'Product not found in the reservation' });
+        }
+        res.status(200).json({ message: 'Product deleted successfully from reservation' });
     });
 });
 router.get('/existing-reservations', (req, res) => {
@@ -285,13 +388,44 @@ router.post('/', (req, res) => {
     });
 });
 
+
+
+
+// Cập nhật toàn bộ thông tin của một đặt bàn
+
+
+
+// Cập nhật từng phần thông tin đặt bàn
+
+
+
+
+const deleteOldProducts = (reservationId, products, res) => {
+    const sqlDeleteProducts = `
+        DELETE FROM reservation_details WHERE reservation_id = ?
+    `;
+
+    connection.query(sqlDeleteProducts, [reservationId], (err) => {
+        if (err) {
+            return rollbackTransaction(res, 'Lỗi khi xóa sản phẩm cũ', err);
+        }
+
+        if (products && products.length > 0) {
+            addProductsToReservation(reservationId, products, res);
+        } else {
+            commitTransaction(res, 'Cập nhật đặt bàn thành công');
+        }
+    });
+};
 const addProductsToReservation = (reservationId, products, res) => {
     const sqlProduct = `
         INSERT INTO reservation_details (reservation_id, product_id, quantity, price)
         VALUES (?, ?, ?, ?)
     `;
 
+    // Tạo các truy vấn để thêm từng sản phẩm vào bảng reservation_details
     let queries = products.map(product => new Promise((resolve, reject) => {
+        // Truyền thông tin của từng sản phẩm
         connection.query(sqlProduct, [reservationId, product.product_id, product.quantity, product.price], (err) => {
             if (err) {
                 console.error('Lỗi khi thêm sản phẩm:', err);
@@ -301,6 +435,7 @@ const addProductsToReservation = (reservationId, products, res) => {
         });
     }));
 
+    // Chờ tất cả các truy vấn hoàn thành
     Promise.allSettled(queries)
         .then(results => {
             const errorOccurred = results.some(result => result.status === 'rejected');
@@ -326,10 +461,6 @@ const commitTransaction = (res, message) => {
         res.status(201).json({ message }); // Chỉ trả về tin nhắn
     });
 };
-
-
-
-
 
 
 module.exports = router;
