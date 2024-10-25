@@ -7,10 +7,8 @@ const connection = require("../../index");
 var accessKey = process.env.MOMO_ACCESSKEY;
 var secretKey = process.env.MOMO_SECRETKEY;
 
-
 router.post("/", async (req, res) => {
   const { amount, reservationId } = req.body;
-
   var orderInfo = "pay with MoMo";
   var partnerCode = "MOMO";
   var redirectUrl = "http://localhost:3001/confirm";
@@ -19,8 +17,6 @@ router.post("/", async (req, res) => {
   var orderId = partnerCode + new Date().getTime();
   var requestId = orderId;
   var extraData = "";
-  var orderGroupId = "";
-  var autoCapture = true;
   var lang = "vi";
 
   var rawSignature =
@@ -62,9 +58,9 @@ router.post("/", async (req, res) => {
     ipnUrl: ipnUrl,
     lang: lang,
     requestType: requestType,
-    autoCapture: autoCapture,
+    autoCapture: true,
     extraData: extraData,
-    orderGroupId: orderGroupId,
+    orderGroupId: "",
     signature: signature,
   });
 
@@ -99,7 +95,35 @@ router.post("/", async (req, res) => {
     });
 
     // Trả về payUrl cho client
-    return res.status(200).json({ payUrl });
+    // return res.status(200).json({ payUrl });
+    // Đếm ngược thời gian 1 giờ 40 phút (6000 * 100 = 6000s = 1 giờ 40 phút)
+    setTimeout(async () => {
+      const checkStatusQuery = `SELECT status FROM reservations WHERE id = ?`;
+      connection.query(
+        checkStatusQuery,
+        [reservationId],
+        async (err, results) => {
+          if (err) {
+            console.error("Error checking reservation status:", err);
+          } else if (results[0].status !== 3) {
+            const updateStatusQuery = `UPDATE reservations SET status = 2 WHERE id = ?`;
+            await new Promise((resolve, reject) => {
+              connection.query(updateStatusQuery, [reservationId], (err) => {
+                if (err) {
+                  console.error("Error updating reservation status:", err);
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+            console.log("Reservation status updated to 0 due to timeout");
+          }
+        }
+      );
+    }, 100 * 60000); // 1 giờ 40 phút
+
+    return res.status(200).json(result.data);
   } catch (error) {
     console.error("Error in MoMo payment request:", error);
     return res.status(500).json({
@@ -233,7 +257,8 @@ router.post("/callback", async (req, res) => {
   console.log("message:", message);
 
   // Kiểm tra resultCode từ callback
-  if (resultCode === 0) { // Giao dịch thành công
+  if (resultCode === 0) {
+    // Giao dịch thành công
     // Cập nhật trạng thái của đơn đặt chỗ trong bảng reservations
     const updateStatusQuery = `UPDATE reservations SET status = 3 WHERE momo_order_id = ?`;
 
@@ -241,32 +266,39 @@ router.post("/callback", async (req, res) => {
       await new Promise((resolve, reject) => {
         connection.query(updateStatusQuery, [orderId], (err) => {
           if (err) {
-            console.error('Error updating reservation status:', err);
+            console.error("Error updating reservation status:", err);
             reject(err);
           } else {
             resolve();
           }
         });
       });
-      console.log('Reservation status updated successfully');
+      console.log("Reservation status updated successfully");
     } catch (error) {
-      console.error('Error during status update:', error);
-      return res.status(500).json({ message: "Error updating reservation status." });
+      console.error("Error during status update:", error);
+      return res
+        .status(500)
+        .json({ message: "Error updating reservation status." });
     }
-  } else if (resultCode === 49) { // Giao dịch quá hạn
-    console.log('Giao dịch đã hết hạn.');
+  } else if (resultCode === 49) {
+    // Giao dịch quá hạn
+    console.log("Giao dịch đã hết hạn.");
     return res.status(400).json({ message: "Giao dịch đã hết hạn." });
-  } else if (resultCode === 1001) { // Giao dịch bị hủy bởi người dùng
-    console.log('Giao dịch đã bị hủy bởi người dùng.');
-    return res.status(400).json({ message: "Giao dịch đã bị hủy bởi người dùng." });
+  } else if (resultCode === 1001) {
+    // Giao dịch bị hủy bởi người dùng
+    console.log("Giao dịch đã bị hủy bởi người dùng.");
+    return res
+      .status(400)
+      .json({ message: "Giao dịch đã bị hủy bởi người dùng." });
   } else {
-    console.log('Giao dịch thất bại với resultCode:', resultCode);
-    return res.status(400).json({ message: `Giao dịch thất bại với mã lỗi ${resultCode}.` });
+    console.log("Giao dịch thất bại với resultCode:", resultCode);
+    return res
+      .status(400)
+      .json({ message: `Giao dịch thất bại với mã lỗi ${resultCode}.` });
   }
 
   return res.status(200).json(req.body);
 });
-
 
 router.post("/transaction-status", async (req, res) => {
   const { orderId } = req.body;
