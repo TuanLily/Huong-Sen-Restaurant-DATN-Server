@@ -33,10 +33,8 @@ router.get('/:id', (req, res) => {
 // *Thêm đặt chỗ mới
 router.post('/', (req, res) => {
     const {
-        user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount
+        reservation_code, user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount
     } = req.body;
-
-    const reservation_code = `HS-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const status = 1;
     
@@ -46,7 +44,7 @@ router.post('/', (req, res) => {
     const deposit = validTotalAmount * 0.3;
 
     const sql = `INSERT INTO reservations 
-                 (reservation_code,user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
+                 (reservation_code, user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status) 
                  VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(sql, [reservation_code, user_id, table_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status], 
