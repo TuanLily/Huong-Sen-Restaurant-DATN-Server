@@ -9,15 +9,12 @@ var secretKey = process.env.MOMO_SECRETKEY;
 
 
 router.post("/", async (req, res) => {
-  // Lấy dữ liệu từ request body
-  const { amount, reservationId } = req.body; // Nhận reservationId từ client
+  const { amount, reservationId } = req.body;
 
-  // Các thông số khác
   var orderInfo = "pay with MoMo";
   var partnerCode = "MOMO";
   var redirectUrl = "http://localhost:3001/confirm";
-  var ipnUrl =
-    `${process.env.LOCAL_URL}/api/public/payment/callback`; //Nữa thay url ở đây
+  var ipnUrl = `${process.env.LOCAL_URL}/api/public/payment/callback`;
   var requestType = "payWithMethod";
   var orderId = partnerCode + new Date().getTime();
   var requestId = orderId;
@@ -26,7 +23,6 @@ router.post("/", async (req, res) => {
   var autoCapture = true;
   var lang = "vi";
 
-  // Raw signature
   var rawSignature =
     "accessKey=" +
     accessKey +
@@ -49,13 +45,11 @@ router.post("/", async (req, res) => {
     "&requestType=" +
     requestType;
 
-  // Tính toán signature
   var signature = crypto
     .createHmac("sha256", secretKey)
     .update(rawSignature)
     .digest("hex");
 
-  // Tạo request body cho MOMO
   const requestBody = JSON.stringify({
     partnerCode: partnerCode,
     partnerName: "Test",
@@ -74,7 +68,6 @@ router.post("/", async (req, res) => {
     signature: signature,
   });
 
-  // Option cho axios
   const options = {
     method: "POST",
     url: "https://test-payment.momo.vn/v2/gateway/api/create",
@@ -85,9 +78,12 @@ router.post("/", async (req, res) => {
     data: requestBody,
   };
 
-  let result;
   try {
-    result = await axios(options);
+    // Gửi yêu cầu thanh toán đến MoMo
+    const result = await axios(options);
+
+    // Lấy payUrl từ phản hồi của MoMo
+    const { payUrl } = result.data;
 
     // Cập nhật momo_order_id vào bảng reservations
     const updateQuery = `UPDATE reservations SET momo_order_id = ? WHERE id = ?`;
@@ -102,14 +98,128 @@ router.post("/", async (req, res) => {
       });
     });
 
-    return res.status(200).json(result.data);
+    // Trả về payUrl cho client
+    return res.status(200).json({ payUrl });
   } catch (error) {
+    console.error("Error in MoMo payment request:", error);
     return res.status(500).json({
       statusCode: 500,
       message: "Server error",
     });
   }
 });
+
+router.post("/get_pay_url", async (req, res) => {
+  const { amount, reservationId } = req.body;
+
+  try {
+    // Kiểm tra xem mã đơn momo_order_id đã tồn tại trong cơ sở dữ liệu hay chưa
+    const checkQuery = `SELECT momo_order_id FROM reservations WHERE id = ?`;
+    const momoOrderId = await new Promise((resolve, reject) => {
+      connection.query(checkQuery, [reservationId], (err, results) => {
+        if (err) {
+          console.error("Error fetching momo_order_id:", err);
+          reject(err);
+        } else if (results.length > 0 && results[0].momo_order_id) {
+          resolve(results[0].momo_order_id); // Lấy mã momo_order_id đã tồn tại
+        } else {
+          resolve(null); // Không có mã momo_order_id
+        }
+      });
+    });
+
+    let orderId;
+    if (momoOrderId) {
+      // Nếu đã có mã momo_order_id trong cơ sở dữ liệu, sử dụng mã đó
+      orderId = momoOrderId;
+    } else {
+      // Nếu chưa có, tạo mã mới
+      orderId = "MOMO" + new Date().getTime();
+    }
+
+    var orderInfo = "pay with MoMo";
+    var partnerCode = "MOMO";
+    var redirectUrl = "http://localhost:3001/confirm";
+    var ipnUrl = `${process.env.LOCAL_URL}/api/public/payment/callback`;
+    var requestType = "payWithMethod";
+    var requestId = orderId;
+    var extraData = "";
+    var orderGroupId = "";
+    var autoCapture = true;
+    var lang = "vi";
+
+    var rawSignature =
+      "accessKey=" +
+      accessKey +
+      "&amount=" +
+      amount +
+      "&extraData=" +
+      extraData +
+      "&ipnUrl=" +
+      ipnUrl +
+      "&orderId=" +
+      orderId +
+      "&orderInfo=" +
+      orderInfo +
+      "&partnerCode=" +
+      partnerCode +
+      "&redirectUrl=" +
+      redirectUrl +
+      "&requestId=" +
+      requestId +
+      "&requestType=" +
+      requestType;
+
+    var signature = crypto
+      .createHmac("sha256", secretKey)
+      .update(rawSignature)
+      .digest("hex");
+
+    const requestBody = JSON.stringify({
+      partnerCode: partnerCode,
+      partnerName: "Test",
+      storeId: "MomoTestStore",
+      requestId: requestId,
+      amount: amount,
+      orderId: orderId,
+      orderInfo: orderInfo,
+      redirectUrl: redirectUrl,
+      ipnUrl: ipnUrl,
+      lang: lang,
+      requestType: requestType,
+      autoCapture: autoCapture,
+      extraData: extraData,
+      orderGroupId: orderGroupId,
+      signature: signature,
+    });
+
+    const options = {
+      method: "POST",
+      url: "https://test-payment.momo.vn/v2/gateway/api/create",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(requestBody),
+      },
+      data: requestBody,
+    };
+
+    // Gửi yêu cầu thanh toán đến MoMo
+    const result = await axios(options);
+
+    // Lấy payUrl từ phản hồi của MoMo
+    const { payUrl } = result.data;
+
+    // Trả về payUrl cho client
+    return res.status(200).json({ payUrl });
+  } catch (error) {
+    console.error("Error in MoMo payment request:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+    });
+  }
+});
+
 
 router.post("/callback", async (req, res) => {
   console.log("callback:: ");
