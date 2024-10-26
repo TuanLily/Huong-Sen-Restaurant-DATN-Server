@@ -8,13 +8,13 @@ var accessKey = process.env.MOMO_ACCESSKEY;
 var secretKey = process.env.MOMO_SECRETKEY;
 
 router.post("/", async (req, res) => {
-  const { amount, reservationId } = req.body;
+  const { amount, reservationId, reservation_code } = req.body;
   var orderInfo = "pay with MoMo";
   var partnerCode = "MOMO";
   var redirectUrl = "http://localhost:3001/confirm";
   var ipnUrl = `${process.env.LOCAL_URL}/api/public/payment/callback`;
   var requestType = "payWithMethod";
-  var orderId = partnerCode + new Date().getTime();
+  var orderId = reservation_code; // Sử dụng reservation_code
   var requestId = orderId;
   var extraData = "";
   var lang = "vi";
@@ -78,25 +78,7 @@ router.post("/", async (req, res) => {
     // Gửi yêu cầu thanh toán đến MoMo
     const result = await axios(options);
 
-    // Lấy payUrl từ phản hồi của MoMo
-    const { payUrl } = result.data;
-
-    // Cập nhật momo_order_id vào bảng reservations
-    const updateQuery = `UPDATE reservations SET momo_order_id = ? WHERE id = ?`;
-    await new Promise((resolve, reject) => {
-      connection.query(updateQuery, [orderId, reservationId], (err) => {
-        if (err) {
-          console.error("Error updating momo_order_id:", err);
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-
-    // Trả về payUrl cho client
-    // return res.status(200).json({ payUrl });
-    // Đếm ngược thời gian 1 giờ 40 phút (6000 * 100 = 6000s = 1 giờ 40 phút)
+    // Đếm ngược thời gian 1 giờ 40 phút
     setTimeout(async () => {
       const checkStatusQuery = `SELECT status FROM reservations WHERE id = ?`;
       connection.query(
@@ -117,7 +99,7 @@ router.post("/", async (req, res) => {
                 }
               });
             });
-            console.log("Reservation status updated to 0 due to timeout");
+            console.log("Reservation status updated to 2 due to timeout");
           }
         }
       );
@@ -260,7 +242,7 @@ router.post("/callback", async (req, res) => {
   if (resultCode === 0) {
     // Giao dịch thành công
     // Cập nhật trạng thái của đơn đặt chỗ trong bảng reservations
-    const updateStatusQuery = `UPDATE reservations SET status = 3 WHERE momo_order_id = ?`;
+    const updateStatusQuery = `UPDATE reservations SET status = 3 WHERE reservation_code = ?`;
 
     try {
       await new Promise((resolve, reject) => {
