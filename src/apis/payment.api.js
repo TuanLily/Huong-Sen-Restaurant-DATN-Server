@@ -119,28 +119,28 @@ router.post("/get_pay_url", async (req, res) => {
   const { amount, reservationId } = req.body;
 
   try {
-    // Kiểm tra xem mã đơn momo_order_id đã tồn tại trong cơ sở dữ liệu hay chưa
-    const checkQuery = `SELECT momo_order_id FROM reservations WHERE id = ?`;
-    const momoOrderId = await new Promise((resolve, reject) => {
+    // Kiểm tra xem mã đơn reservation_code đã tồn tại trong cơ sở dữ liệu hay chưa
+    const checkQuery = `SELECT reservation_code FROM reservations WHERE id = ?`;
+    const reservationCode = await new Promise((resolve, reject) => {
       connection.query(checkQuery, [reservationId], (err, results) => {
         if (err) {
-          console.error("Error fetching momo_order_id:", err);
+          console.error("Error fetching reservation_code:", err);
           reject(err);
-        } else if (results.length > 0 && results[0].momo_order_id) {
-          resolve(results[0].momo_order_id); // Lấy mã momo_order_id đã tồn tại
+        } else if (results.length > 0 && results[0].reservation_code) {
+          resolve(results[0].reservation_code); // Lấy mã reservation_code đã tồn tại
         } else {
-          resolve(null); // Không có mã momo_order_id
+          resolve(null); // Không có mã reservation_code
         }
       });
     });
 
-    let orderId;
-    if (momoOrderId) {
-      // Nếu đã có mã momo_order_id trong cơ sở dữ liệu, sử dụng mã đó
-      orderId = momoOrderId;
+    let reseCode;
+    if (reservationCode) {
+      // Nếu đã có mã reservation_code trong cơ sở dữ liệu, sử dụng mã đó
+      reseCode = reservationCode;
     } else {
       // Nếu chưa có, tạo mã mới
-      orderId = "MOMO" + new Date().getTime();
+      reseCode = "HS" + new Date().getTime();
     }
 
     var orderInfo = "pay with MoMo";
@@ -148,7 +148,7 @@ router.post("/get_pay_url", async (req, res) => {
     var redirectUrl = "http://localhost:3001/confirm";
     var ipnUrl = `${process.env.LOCAL_URL}/api/public/payment/callback`;
     var requestType = "payWithMethod";
-    var requestId = orderId;
+    var requestId = reseCode;
     var extraData = "";
     var orderGroupId = "";
     var autoCapture = true;
@@ -164,7 +164,7 @@ router.post("/get_pay_url", async (req, res) => {
       "&ipnUrl=" +
       ipnUrl +
       "&orderId=" +
-      orderId +
+      reseCode +
       "&orderInfo=" +
       orderInfo +
       "&partnerCode=" +
@@ -187,7 +187,7 @@ router.post("/get_pay_url", async (req, res) => {
       storeId: "MomoTestStore",
       requestId: requestId,
       amount: amount,
-      orderId: orderId,
+      orderId: reseCode,
       orderInfo: orderInfo,
       redirectUrl: redirectUrl,
       ipnUrl: ipnUrl,

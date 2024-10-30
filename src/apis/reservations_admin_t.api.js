@@ -271,42 +271,55 @@ console.log('existingProducts: ',existingProducts);
 
 
 // Route PATCH để cập nhật đặt chỗ
-router.patch('/:id', async (req, res) => {
-    const reservationId = req.params.id;
-    const {
-        fullname, tel, email, reservation_date,
-        party_size, note, total_amount, deposit,
-        status, products,
-    } = req.body;
+// router.patch('/:id', async (req, res) => {
+//     const reservationId = req.params.id;
+//     const {
+//         fullname, tel, email, reservation_date,
+//         party_size, note, total_amount, deposit,
+//         status, products,
+//     } = req.body;
 
-    try {
-        // Cập nhật thông tin đặt chỗ
-        const updateReservationQuery = `
-            UPDATE reservations
-            SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
-                party_size = ?, note = ?, total_amount = ?, deposit = ?, status = ?
-            WHERE id = ?`;
+//     try {
+//         // Cập nhật thông tin đặt chỗ
+//         const updateReservationQuery = `
+//             UPDATE reservations
+//             SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
+//                 party_size = ?, note = ?, total_amount = ?, deposit = ?, status = ?
+//             WHERE id = ?`;
 
-        await connection.query(updateReservationQuery, [
-            fullname, tel, email, reservation_date, party_size,
-            note, total_amount, deposit, status, reservationId,
-        ]);
+//         await connection.query(updateReservationQuery, [
+//             fullname, tel, email, reservation_date, party_size,
+//             note, total_amount, deposit, status, reservationId,
+//         ]);
 
-        // Nếu có sản phẩm thì xử lý cập nhật hoặc thêm mới
-        if (Array.isArray(products) && products.length > 0) {
-            await upsertProducts(reservationId, products);
+//         // Nếu có sản phẩm thì xử lý cập nhật hoặc thêm mới
+//         if (Array.isArray(products) && products.length > 0) {
+//             await upsertProducts(reservationId, products);
+//         }
+
+//         res.status(200).json({ message: 'Cập nhật thông tin đặt chỗ thành công' });
+//     } catch (error) {
+//         console.error('Lỗi khi cập nhật đặt chỗ:', error);
+//         res.status(500).json({ message: 'Có lỗi xảy ra', error: error.message });
+//     }
+// });
+
+// *Cập nhật trạng thái theo id bằng phương thức patch
+router.patch('/:id', (req, res) => {
+    const { id } = req.params;
+    const updates = req.body;
+    const sql = 'UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    connection.query(sql, [updates, id], (err, results) => {
+        if (err) {
+            console.error('Error partially updating reservations:', err);
+            return res.status(500).json({ error: 'Failed to partially update reservations' });
         }
-
-        res.status(200).json({ message: 'Cập nhật thông tin đặt chỗ thành công' });
-    } catch (error) {
-        console.error('Lỗi khi cập nhật đặt chỗ:', error);
-        res.status(500).json({ message: 'Có lỗi xảy ra', error: error.message });
-    }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'Reservations not found' });
+        }
+        res.status(200).json({ message: "Reservations update successfully" });
+    });
 });
-
-
-
-
 
 // *Xóa reservations theo id
 router.delete('/:reservationId/:productId', (req, res) => {
