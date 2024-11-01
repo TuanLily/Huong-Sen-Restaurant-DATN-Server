@@ -53,7 +53,30 @@ router.post('/', (req, res) => {
                 console.error('Error creating reservation:', err);
                 return res.status(500).json({ error: 'Failed to create reservation' });
             }
-            res.status(201).json({ message: "Reservation created successfully", id: results.insertId });
+
+             // Nếu đặt chỗ thành công, cập nhật status của bàn thành 0
+             const updateTableSql = 'UPDATE tables SET status = 0 WHERE id = ?';
+             connection.query(updateTableSql, [table_id], (err, updateResults) => {
+                 if (err) {
+                     console.error('Error updating table status:', err);
+                     return res.status(500).json({ error: 'Failed to update table status' });
+                 }
+
+                // Nếu có promotion_id, giảm quantity của khuyến mãi đi 1
+                if (promotion_id) {
+                    const updatePromotionSql = 'UPDATE promotions SET quantity = quantity - 1 WHERE id = ? AND quantity > 0';
+                    connection.query(updatePromotionSql, [promotion_id], (err, promoResults) => {
+                        if (err) {
+                            console.error('Error updating promotion quantity:', err);
+                            return res.status(500).json({ error: 'Failed to update promotion quantity' });
+                        }
+
+                    res.status(201).json({ message: "Reservation created successfully", id: results.insertId });
+                });
+            } else {
+                res.status(201).json({ message: "Reservation created successfully", id: results.insertId });
+            }
+            });
         }
     );
 });
