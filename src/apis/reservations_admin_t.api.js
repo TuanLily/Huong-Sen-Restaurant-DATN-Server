@@ -415,19 +415,38 @@ router.patch("/reservation_ad/:id", async (req, res) => {
 router.patch("/:id", (req, res) => {
   const { id } = req.params;
   const updates = req.body;
-  const sql =
-    "UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+  const sql = "UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+
   connection.query(sql, [updates, id], (err, results) => {
     if (err) {
       console.error("Error partially updating reservations:", err);
-      return res
-        .status(500)
-        .json({ error: "Failed to partially update reservations" });
+      return res.status(500).json({ error: "Failed to partially update reservations" });
     }
     if (results.affectedRows === 0) {
-      return res.status(404).json({ error: "Reservations not found" });
+      return res.status(404).json({ error: "Reservation not found" });
     }
-    res.status(200).json({ message: "Reservations update successfully" });
+
+    // Only update table status if status is 0, 2, or 5
+    if ([0, 2, 5].includes(updates.status)) {
+      const getAndUpdateTableSql = `
+        UPDATE tables 
+        SET status = 1 
+        WHERE id = (SELECT table_id FROM reservations WHERE id = ?)
+      `;
+
+      connection.query(getAndUpdateTableSql, [id], (err, tableResults) => {
+        if (err) {
+          console.error("Error updating table status:", err);
+          return res.status(500).json({ error: "Failed to update table status" });
+        }
+        if (tableResults.affectedRows === 0) {
+          return res.status(404).json({ error: "Table not found for the reservation" });
+        }
+        return res.status(200).json({ message: "Reservations and table status updated successfully" });
+      });
+    } else {
+      res.status(200).json({ message: "Reservations updated successfully" });
+    }
   });
 });
 
