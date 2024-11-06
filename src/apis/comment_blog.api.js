@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../../index');
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 5 } = req.query;
+    const { search = '', page = 1, pageSize = 20 } = req.query;
 
     const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 5;
+    const size = parseInt(pageSize, 10) || 20;
     const offset = (pageNumber - 1) * size;
 
     const sqlCount = 'SELECT COUNT(*) as total FROM comment_blog WHERE content LIKE ?';
