@@ -124,54 +124,74 @@ router.patch('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
 
-    // Bước 1: Kiểm tra xem có bài viết nào liên kết với danh mục không
-    const checkPostsSql = 'SELECT * FROM blogs WHERE blog_category_id = ?';
-    connection.query(checkPostsSql, [id], (err, results) => {
+    // Bước 1: Kiểm tra xem danh mục có tên là "Undefined"
+    const checkCategoryNameSql = 'SELECT * FROM blog_categories WHERE id = ?';
+    connection.query(checkCategoryNameSql, [id], (err, categoryResults) => {
         if (err) {
-            console.error('Lỗi khi kiểm tra bài viết:', err);
-            return res.status(500).json({ error: 'Không thể kiểm tra bài viết' });
+            console.error('Lỗi khi kiểm tra danh mục:', err);
+            return res.status(500).json({ error: 'Không thể kiểm tra danh mục' });
         }
 
-        const hasPosts = results.length > 0;
+        if (categoryResults.length === 0) {
+            return res.status(404).json({ error: 'Danh mục không tồn tại' });
+        }
 
-        if (hasPosts) {
-            // Bước 2: Kiểm tra xem danh mục "Undefined" có tồn tại không
-            const checkUndefinedCategorySql = 'SELECT * FROM blog_categories WHERE name = ?';
-            connection.query(checkUndefinedCategorySql, ['Undefined'], (err, undefinedResults) => {
-                if (err) {
-                    console.error('Lỗi khi kiểm tra danh mục "Undefined":', err);
-                    return res.status(500).json({ error: 'Không thể kiểm tra danh mục "Undefined"' });
-                }
+        const categoryName = categoryResults[0].name;
 
-                let undefinedCategoryId;
+        // Nếu danh mục có tên là "Undefined", không cho phép xóa
+        if (categoryName === 'Undefined') {
+            return res.status(200).json({ error: 'Không thể xóa danh mục "Undefined"' });
+        }
 
-                // Nếu danh mục "Undefined" không tồn tại, tạo mới
-                if (undefinedResults.length === 0) {
-                    const createUndefinedCategorySql = 'INSERT INTO blog_categories (name, status) VALUES (?, ?)';
-                    connection.query(createUndefinedCategorySql, ['Undefined', 1], (err, newCategoryResults) => {
-                        if (err) {
-                            console.error('Lỗi khi tạo danh mục "Undefined":', err);
-                            return res.status(500).json({ error: 'Không thể tạo danh mục "Undefined"' });
-                        }
-                        undefinedCategoryId = newCategoryResults.insertId;
+        // Bước 2: Kiểm tra xem có bài viết nào liên kết với danh mục không
+        const checkPostsSql = 'SELECT * FROM blogs WHERE blog_category_id = ?';
+        connection.query(checkPostsSql, [id], (err, results) => {
+            if (err) {
+                console.error('Lỗi khi kiểm tra bài viết:', err);
+                return res.status(500).json({ error: 'Không thể kiểm tra bài viết' });
+            }
+
+            const hasPosts = results.length > 0;
+
+            if (hasPosts) {
+                // Bước 3: Kiểm tra xem danh mục "Undefined" có tồn tại không
+                const checkUndefinedCategorySql = 'SELECT * FROM blog_categories WHERE name = ?';
+                connection.query(checkUndefinedCategorySql, ['Undefined'], (err, undefinedResults) => {
+                    if (err) {
+                        console.error('Lỗi khi kiểm tra danh mục "Undefined":', err);
+                        return res.status(500).json({ error: 'Không thể kiểm tra danh mục "Undefined"' });
+                    }
+
+                    let undefinedCategoryId;
+
+                    // Nếu danh mục "Undefined" không tồn tại, tạo mới
+                    if (undefinedResults.length === 0) {
+                        const createUndefinedCategorySql = 'INSERT INTO blog_categories (name, status) VALUES (?, ?)';
+                        connection.query(createUndefinedCategorySql, ['Undefined', 1], (err, newCategoryResults) => {
+                            if (err) {
+                                console.error('Lỗi khi tạo danh mục "Undefined":', err);
+                                return res.status(500).json({ error: 'Không thể tạo danh mục "Undefined"' });
+                            }
+                            undefinedCategoryId = newCategoryResults.insertId;
+                            reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
+                        });
+                    } else {
+                        undefinedCategoryId = undefinedResults[0].id;
                         reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
-                    });
-                } else {
-                    undefinedCategoryId = undefinedResults[0].id;
-                    reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
-                }
-            });
-        } else {
-            // Nếu không có bài viết, xóa danh mục ngay lập tức
-            const deleteCategorySql = 'DELETE FROM blog_categories WHERE id = ?';
-            connection.query(deleteCategorySql, [id], (err) => {
-                if (err) {
-                    console.error('Lỗi khi xóa danh mục:', err);
-                    return res.status(500).json({ error: 'Không thể xóa danh mục' });
-                }
-                res.status(200).json({ message: 'Danh mục blog đã được xóa thành công' });
-            });
-        }
+                    }
+                });
+            } else {
+                // Nếu không có bài viết, xóa danh mục ngay lập tức
+                const deleteCategorySql = 'DELETE FROM blog_categories WHERE id = ?';
+                connection.query(deleteCategorySql, [id], (err) => {
+                    if (err) {
+                        console.error('Lỗi khi xóa danh mục:', err);
+                        return res.status(500).json({ error: 'Không thể xóa danh mục' });
+                    }
+                    res.status(200).json({ message: 'Danh mục blog đã được xóa thành công' });
+                });
+            }
+        });
     });
 });
 
