@@ -222,13 +222,17 @@ router.post('/login', (req, res) => {
             return res.status(500).send('Lỗi không xác định');
         }
 
+        // Kiểm tra nếu không tìm thấy tài khoản (email)
         if (rows.length === 0) {
-            return res.status(404).send('Tài khoản hoặc mật khẩu không đúng, vui lòng thử lại');
+            return res.status(404).json({
+                status: 'error',
+                message: 'Tài khoản không tồn tại, vui lòng kiểm tra lại'
+            });
         }
 
         const user = rows[0];
 
-        console.log("Check user:: ", user)
+        console.log("Check user:: ", user);
 
         bcrypt.compare(password, user.password, (err, isMatch) => {
             if (err) {
@@ -236,8 +240,12 @@ router.post('/login', (req, res) => {
                 return res.status(500).json({ status: 'error', message: 'Lỗi không xác định' });
             }
 
+            // Kiểm tra nếu mật khẩu không khớp
             if (!isMatch) {
-                return res.status(401).json({ status: 'error', message: 'Tài khoản hoặc mật khẩu không đúng, vui lòng thử lại' });
+                return res.status(401).json({
+                    status: 'error',
+                    message: 'Tài khoản/mật khẩu không chính xác, vui lòng thử lại!'
+                });
             }
 
             // Tạo access token có thời hạn 1 giờ
@@ -258,6 +266,7 @@ router.post('/login', (req, res) => {
         });
     });
 });
+
 
 
 // Quên mật khẩu
