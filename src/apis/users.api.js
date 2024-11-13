@@ -166,13 +166,38 @@ router.patch('/:id', async (req, res) => {
 // Xóa người dùng
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
-    const sql = 'DELETE FROM Users WHERE id = ?';
-    connection.query(sql, [id], (err) => {
-        if (err) {
-            console.error("Error deleting user:", err);
-            return res.status(500).json({ error: "Failed to delete user" });
+
+    // Câu lệnh kiểm tra xem user có tồn tại trong các bảng khác hay không
+    const checkForeignKeySql = `
+        SELECT COUNT(*) as count 
+        FROM (
+            SELECT id FROM membership_cards WHERE user_id = ? 
+        ) as relatedRecords
+    `;
+
+    connection.query(checkForeignKeySql, [id], (checkError, checkResult) => {
+        if (checkError) {
+            console.error("Error checking foreign key constraints:", checkError);
+            return res.status(500).json({ error: "Đã xảy ra lỗi khi kiểm tra khóa ngoại" });
         }
-        res.status(200).json({ message: "User deleted successfully" });
+
+        const relatedCount = checkResult[0].count;
+
+        if (relatedCount > 0) {
+            // Nếu có bản ghi liên quan trong các bảng khác thì không cho phép xóa
+            return res.status(400).json({ error: "Không thể xóa tài khoản" });
+        }
+
+        // Nếu không có ràng buộc khóa ngoại, tiến hành xóa user
+        const deleteSql = 'DELETE FROM Users WHERE id = ?';
+
+        connection.query(deleteSql, [id], (deleteError) => {
+            if (deleteError) {
+                console.error("Error deleting user:", deleteError);
+                return res.status(500).json({ error: "Lỗi khi xóa tài khoản" });
+            }
+            res.status(200).json({ message: "Xóa tài khoản thành công" });
+        });
     });
 });
 
