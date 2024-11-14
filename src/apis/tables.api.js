@@ -4,17 +4,28 @@ const connection = require("../../index");
 
 // Lấy danh sách bàn với phân trang và tìm kiếm
 router.get("/", (req, res) => {
-  const { search = "", page = 1, pageSize = 5 } = req.query;
+  const { search = "", page = 1, pageSize = 8 } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
   const size = parseInt(pageSize, 10) || 5;
   const offset = (pageNumber - 1) * size;
 
-  const sqlCount = "SELECT COUNT(*) as total FROM tables WHERE number LIKE ?";
-  let sql =
-    "SELECT * FROM tables WHERE number LIKE ? ORDER BY number ASC LIMIT ? OFFSET ?";
+  // Convert the search parameter to an integer if it matches a capacity filter (2, 4, 6, or 8)
+  const capacityFilter = [2, 4, 6, 8].includes(parseInt(search)) ? parseInt(search) : null;
 
-  connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+  const sqlCount = capacityFilter
+    ? "SELECT COUNT(*) as total FROM tables WHERE capacity = ?"
+    : "SELECT COUNT(*) as total FROM tables";
+    
+  const sql = capacityFilter
+    ? "SELECT * FROM tables WHERE capacity = ? ORDER BY number ASC LIMIT ? OFFSET ?"
+    : "SELECT * FROM tables ORDER BY number ASC LIMIT ? OFFSET ?";
+
+  // Pass capacityFilter if specified, otherwise handle with an empty filter
+  const countParams = capacityFilter ? [capacityFilter] : [];
+  const queryParams = capacityFilter ? [capacityFilter, size, offset] : [size, offset];
+
+  connection.query(sqlCount, countParams, (err, countResults) => {
     if (err) {
       console.error("Lỗi khi đếm bàn:", err);
       return res.status(500).json({ error: "Không thể đếm bàn" });
@@ -23,7 +34,7 @@ router.get("/", (req, res) => {
     const totalCount = countResults[0].total;
     const totalPages = Math.ceil(totalCount / size);
 
-    connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+    connection.query(sql, queryParams, (err, results) => {
       if (err) {
         console.error("Lỗi khi lấy danh sách bàn:", err);
         return res.status(500).json({ error: "Không thể lấy danh sách bàn" });
