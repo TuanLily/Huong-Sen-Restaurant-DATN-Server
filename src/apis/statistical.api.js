@@ -79,4 +79,46 @@ router.get('/', (req, res) => {
     });
 });
 
+// API thống kê doanh thu theo khoảng thời gian
+router.get('/revenue', (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    // Kiểm tra xem startDate và endDate có được truyền vào hay không
+    if (!startDate || !endDate) {
+        return res.status(400).json({ 
+            error: 'Vui lòng truyền đầy đủ startDate và endDate theo định dạng YYYY-MM-DD.' 
+        });
+    }
+
+    // Câu truy vấn SQL để tính doanh thu
+    const sql = `
+        SELECT 
+            SUM(total_amount) AS totalRevenue, 
+            COUNT(*) AS orderCount
+        FROM reservations
+        WHERE status = 5 
+          AND created_at BETWEEN ? AND ?
+    `;
+
+    // Thực hiện truy vấn với tham số
+    connection.query(sql, [startDate, endDate], (err, results) => {
+        if (err) {
+            console.error('Lỗi truy vấn dữ liệu:', err);
+            return res.status(500).json({ error: 'Không thể lấy dữ liệu doanh thu.' });
+        }
+
+        // Kết quả từ truy vấn
+        const totalRevenue = results[0]?.totalRevenue || 0;
+        const orderCount = results[0]?.orderCount || 0;
+
+        res.status(200).json({
+            message: `Thống kê doanh thu từ ${startDate} đến ${endDate}`,
+            startDate,
+            endDate,
+            totalRevenue,
+            orderCount
+        });
+    });
+});
+
 module.exports = router;
