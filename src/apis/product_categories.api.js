@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
 
     // SQL truy vấn để lấy tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ?';
-    
+
     // SQL truy vấn để lấy danh sách promotion phân trang
     let sql = 'SELECT * FROM product_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
@@ -58,12 +58,12 @@ router.get('/hoat_dong', (req, res) => {
 
     // SQL truy vấn để lấy tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ? and status = ?';
-    
+
     // SQL truy vấn để lấy danh sách promotion phân trang
     let sql = 'SELECT * FROM product_categories WHERE name LIKE ? and status = ? ORDER BY id ASC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%` , 1], (err, countResults) => {
+    connection.query(sqlCount, [`%${search}%`, 1], (err, countResults) => {
         if (err) {
             console.error('Error counting product_categories:', err);
             return res.status(500).json({ error: 'Failed to count product_categories' });
@@ -91,6 +91,29 @@ router.get('/hoat_dong', (req, res) => {
     });
 });
 
+// *Lấy tất cả danh sách danh mục sản phẩm hoạt động
+router.get('/danh_muc', (req, res) => {
+    const { search = '' } = req.query;
+
+    // SQL truy vấn để lấy danh mục sản phẩm hoạt động
+    const sql = 'SELECT * FROM product_categories WHERE name LIKE ? AND status = ? ORDER BY id ASC';
+
+    // Lấy danh sách danh mục
+    connection.query(sql, [`%${search}%`, 1], (err, results) => {
+        if (err) {
+            console.error('Error fetching product_categories:', err);
+            return res.status(500).json({ error: 'Failed to fetch product categories' });
+        }
+
+        // Trả về kết quả
+        res.status(200).json({
+            message: 'Show list product categories successfully',
+            results,
+        });
+    });
+});
+
+
 // *Lấy thông tin danh mục sản phẩm theo id
 router.get('/:id', (req, res) => {
     const { id } = req.params;
@@ -112,7 +135,7 @@ router.get('/:id', (req, res) => {
 
 // *Thêm danh mục sản phẩm mới
 router.post('/', (req, res) => {
-    const { name , status } = req.body;
+    const { name, status } = req.body;
 
     if (!name) {
         return res.status(400).json({ error: 'Name is required' });

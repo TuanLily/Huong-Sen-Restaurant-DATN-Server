@@ -90,6 +90,30 @@ router.get('/hoat_dong', (req, res) => {
     });
 });
 
+
+// *Lấy menu
+router.get('/menu', (req, res) => {
+    const { search = '' } = req.query;
+
+    // SQL truy vấn để lấy toàn bộ danh sách sản phẩm khớp với tìm kiếm
+    const sql = 'SELECT * FROM products WHERE name LIKE ? AND status = ? ORDER BY id DESC';
+
+    // Lấy danh sách sản phẩm
+    connection.query(sql, [`%${search}%`, 1], (err, results) => {
+        if (err) {
+            console.error('Error fetching menu items:', err);
+            return res.status(500).json({ error: 'Failed to fetch menu items' });
+        }
+
+        // Trả về kết quả
+        res.status(200).json({
+            message: 'Show menu successfully',
+            results,
+        });
+    });
+});
+
+
 // *Lấy tất cả danh sách sản phẩm ngưng hoạt động
 router.get('/ngung_hoat_dong', (req, res) => {
     const { search = '', page = 1, pageSize = 10 } = req.query;
