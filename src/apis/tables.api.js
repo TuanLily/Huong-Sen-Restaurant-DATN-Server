@@ -180,4 +180,24 @@ router.delete("/:id", (req, res) => {
   });
 });
 
+// Lấy chi tiết đơn đặt bàn theo table_id
+router.get("/:table_id/reservations", (req, res) => {
+  const { table_id } = req.params;
+
+  const sql = "SELECT * FROM reservations WHERE table_id = ?";
+  connection.query(sql, [table_id], (err, results) => {
+    if (err) {
+      console.error("Lỗi khi lấy thông tin đặt bàn:", err);
+      return res.status(500).json({ error: "Không thể lấy thông tin đặt bàn" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy đơn đặt bàn cho bàn này" });
+    }
+    res.status(200).json({
+      message: "Hiển thị thông tin đặt bàn thành công",
+      data: results,
+    });
+  });
+});
+
 module.exports = router;
