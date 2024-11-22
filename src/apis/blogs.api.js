@@ -74,30 +74,53 @@ router.get("/:id", (req, res) => {
   });
 });
 
-// *Thêm blog mới
+const createSlug = (title) => {
+  return title
+    .toLowerCase()
+    .normalize("NFD") // Chuẩn hóa chuỗi để loại bỏ dấu
+    .replace(/[\u0300-\u036f]/g, "") // Loại bỏ các ký tự dấu
+    .replace(/[^a-z0-9\s-]/g, "") // Chỉ giữ lại chữ, số, dấu cách và gạch ngang
+    .trim() // Xóa khoảng trắng ở đầu và cuối
+    .replace(/\s+/g, "-") // Thay khoảng trắng thành dấu gạch ngang
+    .replace(/-+/g, "-"); // Xóa các gạch ngang dư thừa
+};
+
 router.post("/", (req, res) => {
   const { poster, title, content, author, blog_category_id } = req.body;
+  
+  // Tạo slug từ title
+  const slug = createSlug(title);
+
   const sql =
-    "INSERT INTO blogs (poster, title, content, author, blog_category_id) VALUES (?, ?, ?, ?, ?)";
-  connection.query(sql, [poster, title, content, author, blog_category_id], (err, results) => {
-    if (err) {
-      console.error("Error creating blog:", err);
-      return res.status(500).json({ error: "Failed to create blog" });
+    "INSERT INTO blogs (poster, title, slug, content, author, blog_category_id) VALUES (?, ?, ?, ?, ?, ?)";
+  connection.query(
+    sql,
+    [poster, title, slug, content, author, blog_category_id],
+    (err, results) => {
+      if (err) {
+        console.error("Error creating blog:", err);
+        return res.status(500).json({ error: "Failed to create blog" });
+      }
+      res.status(201).json({ message: "Blog added successfully", id: results.insertId });
     }
-    res.status(201).json({ message: "Blog added successfully" });
-  });
+  );
 });
+
 
 
 // *Cập nhật blog theo id bằng phương thức put
 router.put("/:id", (req, res) => {
   const { id } = req.params;
   const { poster, title, content, author, blog_category_id } = req.body;
+
+  // Tạo slug mới từ title
+  const slug = createSlug(title);
+
   const sql =
-    "UPDATE blogs SET poster = ?, title = ?, content = ?, author = ?, blog_category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    "UPDATE blogs SET poster = ?, title = ?, slug = ?, content = ?, author = ?, blog_category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
   connection.query(
     sql,
-    [poster, title, content, author, blog_category_id, id],
+    [poster, title, slug, content, author, blog_category_id, id],
     (err, results) => {
       if (err) {
         console.error("Error updating blog:", err);
@@ -112,11 +135,15 @@ router.put("/:id", (req, res) => {
 });
 
 
-
 // *Cập nhật blog theo id bằng phương thức patch
 router.patch("/:id", (req, res) => {
   const { id } = req.params;
   const updates = req.body;
+
+  // Nếu `title` tồn tại trong `updates`, tạo lại `slug` từ `title`
+  if (updates.title) {
+    updates.slug = createSlug(updates.title);
+  }
 
   // Dynamically build the SET clause of the SQL query
   const fields = [];
@@ -141,14 +168,13 @@ router.patch("/:id", (req, res) => {
   });
 });
 
+
 router.get('/slug/:slug', (req, res) => {
   const { slug } = req.params;
-  // Tạo SQL để lấy thông tin sản phẩm
-  const sql = 'SELECT * FROM blogs WHERE title = ?';
-  const decodedSlug = decodeURIComponent(slug).replace(/\.html$/, '');
-  const name = decodedSlug.split('-').join(' ');
 
-  connection.query(sql, [name], (err, results) => {
+  const sql = 'SELECT * FROM blogs WHERE slug = ?';
+
+  connection.query(sql, [slug], (err, results) => {
       if (err) {
           console.error('Error fetching blog by slug:', err);
           return res.status(500).json({ error: 'Failed to fetch blog by slug' });
@@ -162,6 +188,7 @@ router.get('/slug/:slug', (req, res) => {
       });
   });
 });
+
 
 // *Xóa blog theo id
 router.delete("/:id", (req, res) => {
