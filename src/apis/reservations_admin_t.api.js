@@ -523,14 +523,28 @@ router.post("/", (req, res) => {
     notes,
     totalAmount,
     products,
-  } = req.body; // Đối tượng chứa thông tin đặt bàn
+  } = req.body;
 
   console.log(req.body);
 
-  const sqlReservation = `
-        INSERT INTO reservations (	reservation_code ,fullname, email, tel, reservation_date, status, deposit, party_size, note, total_amount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-    `;
+  // Xác định sức chứa bàn cần tìm dựa vào số người
+  let requiredCapacity;
+  if (partySize === 1 || partySize === 2) {
+    requiredCapacity = 2;
+  } else if (partySize >= 3 && partySize <= 4) {
+    requiredCapacity = 4;
+  } else if (partySize >= 5) {
+    requiredCapacity = 8;
+  }
+
+  // SQL để tìm bàn phù hợp
+  const findTableSql = `
+    SELECT id, number, capacity
+    FROM tables
+    WHERE capacity = ? AND status = 1
+    ORDER BY id ASC
+    LIMIT 1
+  `;
 
   connection.beginTransaction((err) => {
     if (err) {
@@ -538,33 +552,66 @@ router.post("/", (req, res) => {
       return res.status(500).json({ message: "Lỗi khi bắt đầu giao dịch" });
     }
 
-    connection.query(
-      sqlReservation,
-      [
-        reservation_code,
-        fullname,
-        email,
-        tel,
-        reservation_date,
-        status,
-        deposit,
-        partySize,
-        notes,
-        totalAmount,
-      ],
-      (err, results) => {
-        if (err) {
-          return rollbackTransaction(res, "Không thể tạo đặt bàn", err);
-        }
-
-        const reservationId = results.insertId; // Lấy ID của reservation vừa thêm
-        if (products && products.length > 0) {
-          addProductsToReservation(reservationId, products, res);
-        } else {
-          commitTransaction(res, "Đặt bàn thành công");
-        }
+    connection.query(findTableSql, [requiredCapacity], (err, tableResults) => {
+      if (err) {
+        return rollbackTransaction(res, "Không thể tìm bàn phù hợp", err);
       }
-    );
+
+      if (tableResults.length === 0) {
+        return rollbackTransaction(res, "Không có bàn phù hợp cho số lượng người này");
+      }
+      if (tableResults.length === 0) {
+        return res.status(400).json({ message: "Không có bàn phù hợp cho số lượng người này" });
+    }
+    
+      const table = tableResults[0]; // Lấy bàn đầu tiên phù hợp
+      const tableId = table.id;
+
+      // SQL để thêm đặt bàn
+      const sqlReservation = `
+        INSERT INTO reservations (reservation_code, fullname, email, tel, reservation_date, status, deposit, party_size, note, total_amount, table_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      connection.query(
+        sqlReservation,
+        [
+          reservation_code,
+          fullname,
+          email,
+          tel,
+          reservation_date,
+          status,
+          deposit,
+          partySize,
+          notes,
+          totalAmount,
+          tableId,
+        ],
+        (err, results) => {
+          if (err) {
+            return rollbackTransaction(res, "Không thể tạo đặt bàn", err);
+          }
+
+          const reservationId = results.insertId; // Lấy ID của reservation vừa thêm
+
+          // Cập nhật trạng thái bàn thành 0
+          const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
+          connection.query(updateTableSql, [tableId], (err) => {
+            if (err) {
+              return rollbackTransaction(res, "Không thể cập nhật trạng thái bàn", err);
+            }
+
+            // Thêm sản phẩm nếu có
+            if (products && products.length > 0) {
+              addProductsToReservation(reservationId, products, res);
+            } else {
+              commitTransaction(res, "Đặt bàn thành công", { reservationId, table });
+            }
+          });
+        }
+      );
+    });
   });
 });
 
