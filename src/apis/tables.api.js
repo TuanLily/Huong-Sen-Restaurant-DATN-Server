@@ -16,7 +16,7 @@ router.get("/", (req, res) => {
   const sqlCount = capacityFilter
     ? "SELECT COUNT(*) as total FROM tables WHERE capacity = ?"
     : "SELECT COUNT(*) as total FROM tables";
-    
+
   const sql = capacityFilter
     ? "SELECT * FROM tables WHERE capacity = ? ORDER BY number ASC LIMIT ? OFFSET ?"
     : "SELECT * FROM tables ORDER BY number ASC LIMIT ? OFFSET ?";
@@ -51,6 +51,67 @@ router.get("/", (req, res) => {
   });
 });
 
+// Lọc bàn ăn theo ngày với phân trang
+router.get("/filter-by-date", (req, res) => {
+  const { date, page = 1, pageSize = 8 } = req.query;
+
+  console.log("Chj date::", date);
+
+  if (!date) {
+    return res.status(400).json({ error: "Ngày là bắt buộc" });
+  }
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const size = parseInt(pageSize, 10) || 8; // Sử dụng giá trị mặc định là 8
+  const offset = (pageNumber - 1) * size;
+
+  const sqlCount = `
+    SELECT COUNT(*) as total 
+    FROM tables t
+    LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ?
+    WHERE t.status IN (0, 1)
+  `;
+
+  const sql = `
+    SELECT t.id, t.number, t.capacity, 
+           CASE 
+             WHEN r.table_id IS NOT NULL THEN 0 -- Đang phục vụ
+             ELSE 1 -- Bàn trống
+           END AS status,
+           r.reservation_date 
+    FROM tables t
+    LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ?
+    WHERE t.status IN (0, 1)
+    ORDER BY t.number ASC
+    LIMIT ? OFFSET ?
+  `;
+
+  connection.query(sqlCount, [date], (err, countResults) => {
+    if (err) {
+      console.error("Lỗi khi đếm bàn:", err);
+      return res.status(500).json({ error: "Không thể đếm bàn" });
+    }
+
+    const totalCount = countResults[0].total;
+    const totalPages = Math.ceil(totalCount / size);
+
+    connection.query(sql, [date, size, offset], (err, results) => {
+      if (err) {
+        console.error("Lỗi khi lấy danh sách bàn:", err);
+        return res.status(500).json({ error: "Không thể lấy danh sách bàn" });
+      }
+
+      res.status(200).json({
+        message: "Hiển thị danh sách bàn theo ngày thành công",
+        results,
+        totalCount,
+        totalPages,
+        currentPage: pageNumber,
+      });
+    });
+  });
+});
+
 // Lấy thông tin bàn theo ID
 router.get("/:id", (req, res) => {
   const { id } = req.params;
@@ -61,7 +122,7 @@ router.get("/:id", (req, res) => {
       return res.status(500).json({ error: "Không thể lấy thông tin bàn" });
     }
     if (results.length === 0) {
-      return res.status(404).json({ error: "Không tìm thấy bàn" });
+      return res.status(404).json({ error: "Không tìm thấy bàn " });
     }
     res.status(200).json({
       message: "Hiển thị thông tin bàn thành công",
@@ -69,6 +130,8 @@ router.get("/:id", (req, res) => {
     });
   });
 });
+
+
 
 // Thêm bàn mới
 router.post("/", (req, res) => {
@@ -199,5 +262,7 @@ router.get("/:table_id/reservations", (req, res) => {
     });
   });
 });
+
+
 
 module.exports = router;
