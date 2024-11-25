@@ -54,13 +54,6 @@ router.post('/', (req, res) => {
                 return res.status(500).json({ error: 'Failed to create reservation' });
             }
 
-             // Nếu đặt chỗ thành công, cập nhật status của bàn thành 0
-             const updateTableSql = 'UPDATE tables SET status = 0 WHERE id = ?';
-             connection.query(updateTableSql, [table_id], (err, updateResults) => {
-                 if (err) {
-                     console.error('Error updating table status:', err);
-                     return res.status(500).json({ error: 'Failed to update table status' });
-                 }
 
                 // Nếu có promotion_id, giảm quantity của khuyến mãi đi 1
                 if (promotion_id) {
@@ -79,7 +72,6 @@ router.post('/', (req, res) => {
             });
         }
     );
-});
 
 // *Cập nhật đặt chỗ theo id bằng phương thức put
 router.put('/:id', (req, res) => {
