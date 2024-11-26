@@ -6,22 +6,24 @@ const connection = require("../../index");
 router.get("/", (req, res) => {
   const { search = "", page = 1, pageSize = 8 } = req.query;
 
-  const pageNumber = parseInt(page, 10) || 1;
-  const size = parseInt(pageSize, 10) || 5;
+  const pageNumber = Math.max(1, parseInt(page, 10)); // Đảm bảo page >= 1
+  const size = Math.max(1, parseInt(pageSize, 10)); // Đảm bảo pageSize >= 1
   const offset = (pageNumber - 1) * size;
 
-  // Convert the search parameter to an integer if it matches a capacity filter (2, 4, 6, or 8)
+  // Kiểm tra nếu search là số lượng người hợp lệ (2, 4, 6, 8)
   const capacityFilter = [2, 4, 6, 8].includes(parseInt(search)) ? parseInt(search) : null;
 
-  const sqlCount = capacityFilter
-    ? "SELECT COUNT(*) as total FROM tables WHERE capacity = ?"
-    : "SELECT COUNT(*) as total FROM tables";
+  let sqlCount, sql;
 
-  const sql = capacityFilter
-    ? "SELECT * FROM tables WHERE capacity = ? ORDER BY number ASC LIMIT ? OFFSET ?"
-    : "SELECT * FROM tables ORDER BY number ASC LIMIT ? OFFSET ?";
+  // Nếu có lọc theo số lượng người, thêm điều kiện lọc capacity vào câu truy vấn
+  if (capacityFilter) {
+    sqlCount = "SELECT COUNT(*) as total FROM tables WHERE capacity = ?";
+    sql = "SELECT * FROM tables WHERE capacity = ? ORDER BY number ASC LIMIT ? OFFSET ?";
+  } else {
+    sqlCount = "SELECT COUNT(*) as total FROM tables";
+    sql = "SELECT * FROM tables ORDER BY number ASC LIMIT ? OFFSET ?";
+  }
 
-  // Pass capacityFilter if specified, otherwise handle with an empty filter
   const countParams = capacityFilter ? [capacityFilter] : [];
   const queryParams = capacityFilter ? [capacityFilter, size, offset] : [size, offset];
 
