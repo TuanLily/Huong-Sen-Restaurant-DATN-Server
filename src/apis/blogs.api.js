@@ -58,6 +58,49 @@ router.get('/', (req, res) => {
   });
 });
 
+// Lấy danh sách bài viết với phân trang
+router.get("/posts", (req, res) => {
+  const { page = 1, pageSize = 12} = req.query;
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const size = parseInt(pageSize, 10) || 12; // Sử dụng giá trị mặc định là 8
+  const offset = (pageNumber - 1) * size;
+
+  const sqlCount = "SELECT COUNT(*) as total FROM blogs"; // Giả sử bảng bài viết là 'posts'
+
+  const sql = `
+    SELECT * 
+    FROM blogs 
+    ORDER BY created_at DESC -- Hoặc bất kỳ trường nào bạn muốn sắp xếp
+    LIMIT ? OFFSET ?
+  `;
+
+  connection.query(sqlCount, (err, countResults) => {
+    if (err) {
+      console.error("Lỗi khi đếm bài viết:", err);
+      return res.status(500).json({ error: "Không thể đếm bài viết" });
+    }
+
+    const totalCount = countResults[0].total;
+    const totalPages = Math.ceil(totalCount / size);
+
+    connection.query(sql, [size, offset], (err, results) => {
+      if (err) {
+        console.error("Lỗi khi lấy danh sách bài viết:", err);
+        return res.status(500).json({ error: "Không thể lấy danh sách bài viết" });
+      }
+
+      res.status(200).json({
+        message: "Hiển thị danh sách bài viết thành công",
+        results,
+        totalCount,
+        totalPages,
+        currentPage: pageNumber,
+      });
+    });
+  });
+});
+
 // *Lấy thông tin blog theo id
 router.get("/:id", (req, res) => {
   const { id } = req.params;
@@ -87,7 +130,7 @@ const createSlug = (title) => {
 
 router.post("/", (req, res) => {
   const { poster, title, content, author, blog_category_id } = req.body;
-  
+
   // Tạo slug từ title
   const slug = createSlug(title);
 
@@ -175,17 +218,17 @@ router.get('/slug/:slug', (req, res) => {
   const sql = 'SELECT * FROM blogs WHERE slug = ?';
 
   connection.query(sql, [slug], (err, results) => {
-      if (err) {
-          console.error('Error fetching blog by slug:', err);
-          return res.status(500).json({ error: 'Failed to fetch blog by slug' });
-      }
-      if (results.length === 0) {
-          return res.status(404).json({ error: 'Blog not found' });
-      }
-      res.status(200).json({
-          message: 'Show information blog successfully',
-          data: results[0]
-      });
+    if (err) {
+      console.error('Error fetching blog by slug:', err);
+      return res.status(500).json({ error: 'Failed to fetch blog by slug' });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+    res.status(200).json({
+      message: 'Show information blog successfully',
+      data: results[0]
+    });
   });
 });
 
@@ -205,5 +248,7 @@ router.delete("/:id", (req, res) => {
     res.status(200).json({ message: "Blog deleted successfully" });
   });
 });
+
+
 
 module.exports = router;

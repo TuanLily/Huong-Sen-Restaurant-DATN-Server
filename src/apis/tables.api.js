@@ -55,8 +55,6 @@ router.get("/", (req, res) => {
 router.get("/filter-by-date", (req, res) => {
   const { date, page = 1, pageSize = 8 } = req.query;
 
-  console.log("Chj date::", date);
-
   if (!date) {
     return res.status(400).json({ error: "Ngày là bắt buộc" });
   }
