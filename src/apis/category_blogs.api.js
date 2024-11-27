@@ -120,11 +120,11 @@ router.patch('/:id', (req, res) => {
     });
 });
 
-// *Xóa danh mục blog theo id
+// Xóa danh mục blog theo id
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
 
-    // Bước 1: Kiểm tra xem danh mục có tên là "Undefined"
+    // Bước 1: Kiểm tra xem danh mục có tên là "Chưa phân loại"
     const checkCategoryNameSql = 'SELECT * FROM blog_categories WHERE id = ?';
     connection.query(checkCategoryNameSql, [id], (err, categoryResults) => {
         if (err) {
@@ -138,9 +138,9 @@ router.delete('/:id', (req, res) => {
 
         const categoryName = categoryResults[0].name;
 
-        // Nếu danh mục có tên là "Undefined", không cho phép xóa
-        if (categoryName === 'Undefined') {
-            return res.status(200).json({ error: 'Không thể xóa danh mục "Undefined"' });
+        // Nếu danh mục có tên là "Chưa phân loại", không cho phép xóa
+        if (categoryName === 'Chưa phân loại') {
+            return res.status(200).json({ error: 'Không thể xóa danh mục "Chưa phân loại"' });
         }
 
         // Bước 2: Kiểm tra xem có bài viết nào liên kết với danh mục không
@@ -154,23 +154,23 @@ router.delete('/:id', (req, res) => {
             const hasPosts = results.length > 0;
 
             if (hasPosts) {
-                // Bước 3: Kiểm tra xem danh mục "Undefined" có tồn tại không
+                // Bước 3: Kiểm tra xem danh mục "Chưa phân loại" có tồn tại không
                 const checkUndefinedCategorySql = 'SELECT * FROM blog_categories WHERE name = ?';
-                connection.query(checkUndefinedCategorySql, ['Undefined'], (err, undefinedResults) => {
+                connection.query(checkUndefinedCategorySql, ['Chưa phân loại'], (err, undefinedResults) => {
                     if (err) {
-                        console.error('Lỗi khi kiểm tra danh mục "Undefined":', err);
-                        return res.status(500).json({ error: 'Không thể kiểm tra danh mục "Undefined"' });
+                        console.error('Lỗi khi kiểm tra danh mục "Chưa phân loại":', err);
+                        return res.status(500).json({ error: 'Không thể kiểm tra danh mục "Chưa phân loại"' });
                     }
 
                     let undefinedCategoryId;
 
-                    // Nếu danh mục "Undefined" không tồn tại, tạo mới
+                    // Nếu danh mục "Chưa phân loại" không tồn tại, tạo mới
                     if (undefinedResults.length === 0) {
                         const createUndefinedCategorySql = 'INSERT INTO blog_categories (name, status) VALUES (?, ?)';
-                        connection.query(createUndefinedCategorySql, ['Undefined', 1], (err, newCategoryResults) => {
+                        connection.query(createUndefinedCategorySql, ['Chưa phân loại', 1], (err, newCategoryResults) => {
                             if (err) {
-                                console.error('Lỗi khi tạo danh mục "Undefined":', err);
-                                return res.status(500).json({ error: 'Không thể tạo danh mục "Undefined"' });
+                                console.error('Lỗi khi tạo danh mục "Chưa phân loại":', err);
+                                return res.status(500).json({ error: 'Không thể tạo danh mục "Chưa phân loại"' });
                             }
                             undefinedCategoryId = newCategoryResults.insertId;
                             reassignPostsAndDeleteCategory(id, undefinedCategoryId, res);
@@ -197,7 +197,7 @@ router.delete('/:id', (req, res) => {
 
 // Hàm để chuyển bài viết và xóa danh mục
 function reassignPostsAndDeleteCategory(categoryId, undefinedCategoryId, res) {
-    // Cập nhật tất cả bài viết sang danh mục "Undefined"
+    // Cập nhật tất cả bài viết sang danh mục "Chưa phân loại"
     const updatePostsSql = 'UPDATE blogs SET blog_category_id = ? WHERE blog_category_id = ?';
     connection.query(updatePostsSql, [undefinedCategoryId, categoryId], (err) => {
         if (err) {
