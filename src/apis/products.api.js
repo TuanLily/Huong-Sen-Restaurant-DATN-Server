@@ -4,7 +4,7 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách sản phẩm
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 10 } = req.query;
+    const { searchName = '', page = 1, pageSize = 10 } = req.query;
 
     // Đảm bảo page và pageSize là số nguyên
     const pageNumber = parseInt(page, 10) || 1;
@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     let sql = 'SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    connection.query(sqlCount, [`%${searchName}%`], (err, countResults) => {
         if (err) {
             console.error('Error counting products:', err);
             return res.status(500).json({ error: 'Failed to count products' });
@@ -28,7 +28,7 @@ router.get('/', (req, res) => {
         const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
 
         // Lấy danh sách products cho trang hiện tại
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+        connection.query(sql, [`%${searchName}%`, size, offset], (err, results) => {
             if (err) {
                 console.error('Error fetching products:', err);
                 return res.status(500).json({ error: 'Failed to fetch products' });
@@ -48,7 +48,7 @@ router.get('/', (req, res) => {
 
 // *Lấy tất cả danh sách sản phẩm hoạt động
 router.get('/hoat_dong', (req, res) => {
-    const { search = '', page = 1, pageSize = 10 } = req.query;
+    const { searchName = '', searchCateID = '', page = 1, pageSize = 10 } = req.query;
 
     // Đảm bảo page và pageSize là số nguyên
     const pageNumber = parseInt(page, 10) || 1;
@@ -56,13 +56,13 @@ router.get('/hoat_dong', (req, res) => {
     const offset = (pageNumber - 1) * size;
 
     // SQL truy vấn để lấy tổng số bản ghi
-    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ?';
 
     // SQL truy vấn để lấy danh sách promotion phân trang
-    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%`, 1], (err, countResults) => {
+    connection.query(sqlCount, [`%${searchName}%`, 1, `%${searchCateID}%`], (err, countResults) => {
         if (err) {
             console.error('Error counting products:', err);
             return res.status(500).json({ error: 'Failed to count products' });
@@ -72,7 +72,7 @@ router.get('/hoat_dong', (req, res) => {
         const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
 
         // Lấy danh sách products cho trang hiện tại
-        connection.query(sql, [`%${search}%`, 1, size, offset], (err, results) => {
+        connection.query(sql, [`%${searchName}%`, 1, `%${searchCateID}%`, size, offset], (err, results) => {
             if (err) {
                 console.error('Error fetching products:', err);
                 return res.status(500).json({ error: 'Failed to fetch products' });
@@ -116,7 +116,7 @@ router.get('/menu', (req, res) => {
 
 // *Lấy tất cả danh sách sản phẩm ngưng hoạt động
 router.get('/ngung_hoat_dong', (req, res) => {
-    const { search = '', page = 1, pageSize = 10 } = req.query;
+    const { searchName = '', searchCateID = '', page = 1, pageSize = 10 } = req.query;
 
     // Đảm bảo page và pageSize là số nguyên
     const pageNumber = parseInt(page, 10) || 1;
@@ -124,13 +124,13 @@ router.get('/ngung_hoat_dong', (req, res) => {
     const offset = (pageNumber - 1) * size;
 
     // SQL truy vấn để lấy tổng số bản ghi
-    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ?';
 
     // SQL truy vấn để lấy danh sách promotion phân trang
-    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? ORDER BY id DESC LIMIT ? OFFSET ?';
+    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%`, 0], (err, countResults) => {
+    connection.query(sqlCount, [`%${searchName}%`, 0, `%${searchCateID}%`], (err, countResults) => {
         if (err) {
             console.error('Error counting products:', err);
             return res.status(500).json({ error: 'Failed to count products' });
@@ -140,7 +140,7 @@ router.get('/ngung_hoat_dong', (req, res) => {
         const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
 
         // Lấy danh sách products cho trang hiện tại
-        connection.query(sql, [`%${search}%`, 0, size, offset], (err, results) => {
+        connection.query(sql, [`%${searchName}%`, 0, `%${searchCateID}%`, size, offset], (err, results) => {
             if (err) {
                 console.error('Error fetching products:', err);
                 return res.status(500).json({ error: 'Failed to fetch products' });
