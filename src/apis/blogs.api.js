@@ -8,55 +8,60 @@ const saltRounds = 10;
 
 // *Lấy tất cả danh sách blog
 router.get('/', (req, res) => {
-  const { searchName = '', page = 1, pageSize = 10 } = req.query;
+  const { searchName = '', page = 1, limit = 10 } = req.query;
 
-  // Ensure page and pageSize are integers
-  const pageNumber = parseInt(page, 10) || 1;
-  const size = parseInt(pageSize, 10) || 5;
-  const offset = (pageNumber - 1) * size;
+  // Chuyển đổi giá trị limit và page thành số nguyên
+  const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Mặc định là 10 nếu không hợp lệ
+  const pageNumber = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1; // Mặc định là 1 nếu không hợp lệ
+  const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+  const searchTerm = `%${searchName}%`; // Thêm dấu % cho tìm kiếm
 
-  // SQL query to count the total number of records
+  // Câu truy vấn đếm tổng số blog
   const sqlCount = `SELECT COUNT(*) as total 
                     FROM blogs 
                     WHERE title LIKE ? 
                     OR author LIKE ?`;
 
-  // SQL query to fetch the paginated list of blogs
-  let sql = `SELECT * 
-             FROM blogs 
-             WHERE title LIKE ? 
-             OR author LIKE ? 
-             ORDER BY id DESC 
-             LIMIT ? OFFSET ?`;
+  // Câu truy vấn lấy danh sách blog
+  const sql = `
+    SELECT * 
+    FROM blogs 
+    WHERE title LIKE ? 
+    OR author LIKE ? 
+    ORDER BY id DESC 
+    LIMIT ? OFFSET ?
+  `;
 
-  // Count the total number of matching records
-  connection.query(sqlCount, [`%${searchName}%`, `%${searchName}%`], (err, countResults) => {
+  // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
+  connection.query(sqlCount, [searchTerm, searchTerm], (err, countResults) => {
     if (err) {
       console.error('Error counting blogs:', err);
       return res.status(500).json({ error: 'Failed to count blogs' });
     }
 
-    const totalCount = countResults[0].total;
-    const totalPages = Math.ceil(totalCount / size); // Calculate the total number of pages
+    const totalCount = countResults[0].total; // Tổng số blog
+    const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
 
-    // Fetch the list of blogs for the current page
-    connection.query(sql, [`%${searchName}%`, `%${searchName}%`, size, offset], (err, results) => {
+    // Tiếp theo, lấy danh sách blog
+    connection.query(sql, [searchTerm, searchTerm, limitNumber, offset], (err, results) => {
       if (err) {
         console.error('Error fetching blogs:', err);
         return res.status(500).json({ error: 'Failed to fetch blogs' });
       }
 
-      // Return the result with pagination information
+      // Trả về kết quả
       res.status(200).json({
-        message: 'Show list blog successfully',
-        results,
-        totalCount,
-        totalPages,
-        currentPage: pageNumber
+        message: 'Fetch blogs successfully',
+        results, // Danh sách blog
+        totalCount, // Tổng số blog
+        totalPages, // Tổng số trang
+        currentPage: pageNumber, // Trang hiện tại
+        limit: limitNumber, // Số bản ghi trên mỗi trang
       });
     });
   });
 });
+
 
 // Lấy danh sách bài viết với phân trang
 router.get("/posts", (req, res) => {
