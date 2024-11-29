@@ -4,47 +4,59 @@ const connection = require('../../index');
 
 // Lấy tất cả danh sách tài khoản khách hàng với phân trang
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 10 } = req.query;
+    const { search = '', page = 1, limit = 10 } = req.query;
 
-    // Đảm bảo page và pageSize là số nguyên
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 10;
-    const offset = (pageNumber - 1) * size;
+    // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Đảm bảo limit là số nguyên dương, nếu không thì dùng 10
 
-    // SQL truy vấn để lấy tổng số bản ghi
+    // Chuyển đổi giá trị page thành số nguyên
+    const pageNumber = parseInt(page, 10);
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+    const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+
+    // Câu truy vấn đếm tổng số bản ghi
     const sqlCount = 'SELECT COUNT(*) as total FROM roles WHERE name LIKE ?';
-    
-    // SQL truy vấn để lấy danh sách khách hàng phân trang
-    let sql = 'SELECT * FROM roles WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
-    // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    // Câu truy vấn lấy danh sách vai trò
+    let sql = 'SELECT * FROM roles WHERE name LIKE ? ORDER BY id DESC';
+
+    // Nếu có phân trang, thêm LIMIT và OFFSET
+    const queryParams = [searchTerm];
+    if (page && limit) {
+        sql += ' LIMIT ? OFFSET ?';
+        queryParams.push(limitNumber, offset);
+    }
+
+    // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
+    connection.query(sqlCount, [searchTerm], (err, countResults) => {
         if (err) {
             console.error('Error counting roles:', err);
             return res.status(500).json({ error: 'Failed to count roles' });
         }
 
-        const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+        const totalCount = countResults[0].total; // Tổng số bản ghi
+        const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
 
-        // Lấy danh sách khách hàng cho trang hiện tại
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+        // Tiếp theo, lấy danh sách vai trò
+        connection.query(sql, queryParams, (err, results) => {
             if (err) {
                 console.error('Error fetching roles:', err);
                 return res.status(500).json({ error: 'Failed to fetch roles' });
             }
 
-            // Trả về kết quả với thông tin phân trang
+            // Trả về kết quả
             res.status(200).json({
-                message: 'Show list role successfully',
+                message: 'Show list roles successfully',
                 results,
                 totalCount,
-                totalPages,
-                currentPage: pageNumber
+                totalPages, // Tổng số trang
+                currentPage: pageNumber, // Trang hiện tại
+                limit: limitNumber, // Số bản ghi trên mỗi trang (limit)
             });
         });
     });
 });
+
 
 // *Lấy thông tin vai trò theo id
 router.get('/:id', (req, res) => {
