@@ -2,98 +2,115 @@ const express = require('express');
 const router = express.Router();
 const connection = require('../../index');
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 20 } = req.query;
+    const { searchName = '', page = 1, limit = 10 } = req.query;
 
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 20;
-    const offset = (pageNumber - 1) * size;
+    // Chuyển đổi giá trị limit và page thành số nguyên
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Mặc định là 10 nếu không hợp lệ
+    const pageNumber = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1; // Mặc định là 1 nếu không hợp lệ
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+    const searchTerm = `%${searchName}%`; // Thêm dấu % cho tìm kiếm
 
+    // Câu truy vấn đếm tổng số bình luận
     const sqlCount = 'SELECT COUNT(*) as total FROM comment_blog WHERE content LIKE ?';
 
-    // Join bảng comment_blog và user để lấy thông tin fullname và avatar
+    // Câu truy vấn lấy danh sách bình luận (có join với bảng users)
     const sql = `
       SELECT comment_blog.*, users.fullname, users.avatar 
       FROM comment_blog 
       JOIN users ON comment_blog.user_id = users.id 
-      WHERE content LIKE ? 
+      WHERE comment_blog.content LIKE ? 
       ORDER BY comment_blog.id DESC 
-      LIMIT ? OFFSET ?`;
+      LIMIT ? OFFSET ?
+    `;
 
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
+    connection.query(sqlCount, [searchTerm], (err, countResults) => {
         if (err) {
-            console.error('Lỗi khi đếm bình luận:', err);
-            return res.status(500).json({ error: 'Không thể đếm bình luận' });
+            console.error('Error counting comments:', err);
+            return res.status(500).json({ error: 'Failed to count comments' });
         }
 
-        const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size);
+        const totalCount = countResults[0].total; // Tổng số bình luận
+        const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
 
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+        // Tiếp theo, lấy danh sách bình luận
+        connection.query(sql, [searchTerm, limitNumber, offset], (err, results) => {
             if (err) {
-                console.error('Lỗi khi lấy danh sách bình luận:', err);
-                return res.status(500).json({ error: 'Không thể lấy danh sách bình luận' });
+                console.error('Error fetching comments:', err);
+                return res.status(500).json({ error: 'Failed to fetch comments' });
             }
 
+            // Trả về kết quả
             res.status(200).json({
-                message: 'Hiển thị danh sách bình luận thành công',
-                results,
-                totalCount,
-                totalPages,
-                currentPage: pageNumber
+                message: 'Fetch comments successfully',
+                results, // Danh sách bình luận
+                totalCount, // Tổng số bình luận
+                totalPages, // Tổng số trang
+                currentPage: pageNumber, // Trang hiện tại
+                limit: limitNumber, // Số bản ghi trên mỗi trang
             });
         });
     });
 });
 
 
+
 router.get('/blog/:blog_id', (req, res) => {
     const { blog_id } = req.params;
-    const { page = 1, pageSize = 10 } = req.query; // Mặc định pageSize là 10 nếu không truyền
-
-    // Chuyển đổi các giá trị query về dạng số nguyên
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 10;
-    const offset = (pageNumber - 1) * size;
-
-    // SQL để đếm tổng số comment cho blog_id
-    const sqlCount = 'SELECT COUNT(*) as total FROM comment_blog WHERE blog_id = ?';
-
-    // SQL để lấy danh sách comment với thông tin người dùng
+    const { page = 1, limit = 10 } = req.query; // Mặc định `limit` là 10 nếu không được cung cấp
+  
+    // Chuyển đổi các giá trị query về số nguyên
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Mặc định là 10 nếu không hợp lệ
+    const pageNumber = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1; // Mặc định là 1 nếu không hợp lệ
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+  
+    // Câu truy vấn đếm tổng số bình luận cho blog_id
+    const sqlCount = `
+      SELECT COUNT(*) as total 
+      FROM comment_blog 
+      WHERE blog_id = ?
+    `;
+  
+    // Câu truy vấn lấy danh sách bình luận, kết hợp thông tin từ bảng `users`
     const sql = `
       SELECT comment_blog.*, users.fullname, users.avatar 
       FROM comment_blog 
       JOIN users ON comment_blog.user_id = users.id 
       WHERE comment_blog.blog_id = ? 
       ORDER BY comment_blog.id DESC 
-      LIMIT ? OFFSET ?`;
-
-    // Query đếm tổng số bình luận
+      LIMIT ? OFFSET ?
+    `;
+  
+    // Bước 1: Đếm tổng số bình luận
     connection.query(sqlCount, [blog_id], (err, countResults) => {
+      if (err) {
+        console.error('Error counting comments:', err);
+        return res.status(500).json({ error: 'Failed to count comments' });
+      }
+  
+      const totalCount = countResults[0]?.total || 0; // Tổng số bình luận
+      const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
+  
+      // Bước 2: Lấy danh sách bình luận cho trang hiện tại
+      connection.query(sql, [blog_id, limitNumber, offset], (err, results) => {
         if (err) {
-            console.error('Lỗi khi đếm bình luận:', err);
-            return res.status(500).json({ error: 'Không thể đếm bình luận' });
+          console.error('Error fetching comments:', err);
+          return res.status(500).json({ error: 'Failed to fetch comments' });
         }
-
-        const totalCount = countResults[0]?.total || 0;
-        const totalPages = Math.ceil(totalCount / size);
-
-        // Query lấy danh sách bình luận với phân trang
-        connection.query(sql, [blog_id, size, offset], (err, results) => {
-            if (err) {
-                console.error('Lỗi khi lấy danh sách bình luận:', err);
-                return res.status(500).json({ error: 'Không thể lấy danh sách bình luận' });
-            }
-
-            res.status(200).json({
-                message: 'Hiển thị danh sách bình luận thành công',
-                results,
-                totalCount,
-                totalPages,
-                currentPage: pageNumber
-            });
+  
+        // Trả về kết quả với thông tin phân trang
+        res.status(200).json({
+          message: 'Fetch comments successfully',
+          results, // Danh sách bình luận
+          totalCount, // Tổng số bình luận
+          totalPages, // Tổng số trang
+          currentPage: pageNumber, // Trang hiện tại
+          limit: limitNumber, // Số bản ghi trên mỗi trang
         });
+      });
     });
-});
+  });
+  
 
 
 
