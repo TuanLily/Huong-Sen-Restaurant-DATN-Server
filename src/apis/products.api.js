@@ -48,18 +48,27 @@ router.get('/', (req, res) => {
 
 // *Lấy tất cả danh sách sản phẩm hoạt động
 router.get('/hoat_dong', (req, res) => {
-    const { searchName = '', searchCateID = '', page = 1, pageSize = 10 } = req.query;
+    const { searchName = '', searchCateID = '', page = 1, limit = 10 } = req.query;
 
-    // Đảm bảo page và pageSize là số nguyên
+    // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
+
+    // Chuyển đổi giá trị page thành số nguyên
     const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 10;
-    const offset = (pageNumber - 1) * size;
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
 
     // SQL truy vấn để lấy tổng số bản ghi
-    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM products WHERE name LIKE ? AND status = ? AND categories_id LIKE ?';
 
-    // SQL truy vấn để lấy danh sách promotion phân trang
-    let sql = 'SELECT * FROM products WHERE name LIKE ? and status = ? and categories_id LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+    // SQL truy vấn để lấy danh sách products phân trang
+    let sql = 'SELECT * FROM products WHERE name LIKE ? AND status = ? AND categories_id LIKE ? ORDER BY id DESC';
+
+    // Nếu có phân trang, thêm LIMIT và OFFSET
+    const queryParams = [`%${searchName}%`, 1, `%${searchCateID}%`];
+    if (page && limit) {
+        sql += ' LIMIT ? OFFSET ?';
+        queryParams.push(limitNumber, offset);
+    }
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
     connection.query(sqlCount, [`%${searchName}%`, 1, `%${searchCateID}%`], (err, countResults) => {
@@ -69,10 +78,10 @@ router.get('/hoat_dong', (req, res) => {
         }
 
         const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+        const totalPages = Math.ceil(totalCount / limitNumber); // Tính tổng số trang
 
         // Lấy danh sách products cho trang hiện tại
-        connection.query(sql, [`%${searchName}%`, 1, `%${searchCateID}%`, size, offset], (err, results) => {
+        connection.query(sql, queryParams, (err, results) => {
             if (err) {
                 console.error('Error fetching products:', err);
                 return res.status(500).json({ error: 'Failed to fetch products' });
@@ -83,8 +92,9 @@ router.get('/hoat_dong', (req, res) => {
                 message: 'Show list products successfully',
                 results,
                 totalCount,
-                totalPages,
-                currentPage: pageNumber
+                totalPages, // Tổng số trang
+                currentPage: pageNumber, // Trang hiện tại
+                limit: limitNumber, // Số bản ghi trên mỗi trang (limit)
             });
         });
     });
