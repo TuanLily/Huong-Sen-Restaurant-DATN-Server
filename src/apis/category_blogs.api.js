@@ -4,36 +4,54 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục blog với phân trang
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 5 } = req.query;
+    const { search = '', page = 1, limit = 5 } = req.query;
 
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 5;
-    const offset = (pageNumber - 1) * size;
+    // Chuyển đổi giá trị limit thành số nguyên, mặc định là 5 nếu không có
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 5;
 
+    // Chuyển đổi giá trị page thành số nguyên
+    const pageNumber = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1;
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+    const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+
+    // Câu truy vấn đếm tổng số danh mục blog
     const sqlCount = 'SELECT COUNT(*) as total FROM blog_categories WHERE name LIKE ?';
-    let sql = 'SELECT * FROM blog_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
 
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    // Câu truy vấn lấy danh sách danh mục blog
+    let sql = 'SELECT * FROM blog_categories WHERE name LIKE ? ORDER BY id DESC';
+
+    // Nếu có phân trang, thêm LIMIT và OFFSET
+    const queryParams = [searchTerm];
+    if (page && limit) {
+        sql += ' LIMIT ? OFFSET ?';
+        queryParams.push(limitNumber, offset);
+    }
+
+    // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
+    connection.query(sqlCount, [searchTerm], (err, countResults) => {
         if (err) {
-            console.error('Lỗi khi đếm danh mục blog:', err);
-            return res.status(500).json({ error: 'Không thể đếm danh mục blog' });
+            console.error('Error counting blog categories:', err);
+            return res.status(500).json({ error: 'Failed to count blog categories' });
         }
 
-        const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size);
+        const totalCount = countResults[0].total; // Tổng số danh mục blog
+        const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
 
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+        // Tiếp theo, lấy danh sách danh mục blog
+        connection.query(sql, queryParams, (err, results) => {
             if (err) {
-                console.error('Lỗi khi lấy danh sách danh mục blog:', err);
-                return res.status(500).json({ error: 'Không thể lấy danh sách danh mục blog' });
+                console.error('Error fetching blog categories:', err);
+                return res.status(500).json({ error: 'Failed to fetch blog categories' });
             }
 
+            // Trả về kết quả
             res.status(200).json({
-                message: 'Lấy danh sách danh mục blog thành công',
+                message: 'Fetched blog categories successfully',
                 results,
                 totalCount,
-                totalPages,
-                currentPage: pageNumber
+                totalPages, // Tổng số trang
+                currentPage: pageNumber, // Trang hiện tại
+                limit: limitNumber, // Số bản ghi trên mỗi trang (limit)
             });
         });
     });
