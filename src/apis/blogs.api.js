@@ -8,7 +8,7 @@ const saltRounds = 10;
 
 // *Lấy tất cả danh sách blog
 router.get('/', (req, res) => {
-  const { search = '', page = 1, pageSize = 5 } = req.query;
+  const { searchName = '', page = 1, pageSize = 10 } = req.query;
 
   // Ensure page and pageSize are integers
   const pageNumber = parseInt(page, 10) || 1;
@@ -30,7 +30,7 @@ router.get('/', (req, res) => {
              LIMIT ? OFFSET ?`;
 
   // Count the total number of matching records
-  connection.query(sqlCount, [`%${search}%`, `%${search}%`], (err, countResults) => {
+  connection.query(sqlCount, [`%${searchName}%`, `%${searchName}%`], (err, countResults) => {
     if (err) {
       console.error('Error counting blogs:', err);
       return res.status(500).json({ error: 'Failed to count blogs' });
@@ -40,7 +40,7 @@ router.get('/', (req, res) => {
     const totalPages = Math.ceil(totalCount / size); // Calculate the total number of pages
 
     // Fetch the list of blogs for the current page
-    connection.query(sql, [`%${search}%`, `%${search}%`, size, offset], (err, results) => {
+    connection.query(sql, [`%${searchName}%`, `%${searchName}%`, size, offset], (err, results) => {
       if (err) {
         console.error('Error fetching blogs:', err);
         return res.status(500).json({ error: 'Failed to fetch blogs' });
