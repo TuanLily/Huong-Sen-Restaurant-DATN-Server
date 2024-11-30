@@ -11,42 +11,54 @@ router.get("/", (req, res) => {
     status = "",
     reservation_code = "",
     page = 1,
-    pageSize = 10,
+    limit = 10,
   } = req.query;
 
+  // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
+  const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
+
   // Đảm bảo page và pageSize là số nguyên
-  const pageNumber = parseInt(page, 10) || 1;
-  const size = parseInt(pageSize, 10) || 10;
-  const offset = (pageNumber - 1) * size;
+  const pageNumber = parseInt(page, 10);
+  const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+  const seaName = `%${searchName}%`; // Thêm dấu % cho tìm kiếm
+  const seaPhone = `%${searchPhone}%`; // Thêm dấu % cho tìm kiếm
+  const seaEmail = `%${searchEmail}%`; // Thêm dấu % cho tìm kiếm
+  const seaStatus = `%${status}%`; // Thêm dấu % cho tìm kiếm
+  const seaCode = `%${reservation_code}%`; // Thêm dấu % cho tìm kiếm
 
   // SQL truy vấn để lấy tổng số bản ghi
   const sqlCount =
     "SELECT COUNT(*) as total FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ? AND reservation_code LIKE ?";
 
   // SQL truy vấn để lấy danh sách reservations phân trang
-  // let sql = 'SELECT * FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
   let sql = `
-        SELECT r.*, t.number AS tableName 
-        FROM reservations r
-        LEFT JOIN tables t ON r.table_id = t.id
-        WHERE r.fullname LIKE ? 
-        AND r.tel LIKE ? 
-        AND r.email LIKE ? 
-        AND r.status LIKE ? 
-        AND r.reservation_code LIKE ? 
-        ORDER BY r.id DESC 
-        LIMIT ? OFFSET ?
-    `;
+    SELECT r.*, t.number AS tableName 
+    FROM reservations r
+    LEFT JOIN tables t ON r.table_id = t.id
+    WHERE r.fullname LIKE ? 
+    AND r.tel LIKE ? 
+    AND r.email LIKE ? 
+    AND r.status LIKE ? 
+    AND r.reservation_code LIKE ? 
+    ORDER BY r.id DESC 
+  `;
+
+  // Nếu có phân trang, thêm LIMIT và OFFSET
+  const queryParams = [seaName, seaPhone, seaEmail, seaStatus, seaCode];
+  if (page && limit) {
+      sql += ' LIMIT ? OFFSET ?';
+      queryParams.push(limitNumber, offset);
+  }
 
   // Đếm tổng số bản ghi khớp với tìm kiếm
   connection.query(
     sqlCount,
     [
-      `%${searchName}%`,
-      `%${searchPhone}%`,
-      `%${searchEmail}%`,
-      `%${status}%`,
-      `%${reservation_code}%`,
+      seaName,
+      seaPhone,
+      seaEmail,
+      seaStatus,
+      seaCode,
     ],
     (err, countResults) => {
       if (err) {
@@ -55,20 +67,12 @@ router.get("/", (req, res) => {
       }
 
       const totalCount = countResults[0].total;
-      const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+      const totalPages = Math.ceil(totalCount / limitNumber); // Tính tổng số trang
 
       // Lấy danh sách reservations cho trang hiện tại
       connection.query(
         sql,
-        [
-          `%${searchName}%`,
-          `%${searchPhone}%`,
-          `%${searchEmail}%`,
-          `%${status}%`,
-          `%${reservation_code}%`,
-          size,
-          offset,
-        ],
+        queryParams,
         (err, results) => {
           if (err) {
             console.error("Error fetching reservations:", err);
@@ -84,6 +88,7 @@ router.get("/", (req, res) => {
             totalCount,
             totalPages,
             currentPage: pageNumber,
+            limit: limitNumber,
           });
         }
       );
