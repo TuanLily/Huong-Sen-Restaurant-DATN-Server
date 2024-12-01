@@ -439,70 +439,22 @@ router.patch("/reservation_ad/:id", async (req, res) => {
   }
 });
 
-
 // *Cập nhật trạng thái theo id bằng phương thức patch
-router.patch("/:id", (req, res) => {
+router.patch('/:id', (req, res) => {
   const { id } = req.params;
   const updates = req.body;
-  const sql = "UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-
+  const sql = 'UPDATE reservations SET ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
   connection.query(sql, [updates, id], (err, results) => {
-    if (err) {
-      console.error("Error partially updating reservations:", err);
-      return res.status(500).json({ error: "Failed to partially update reservations" });
-    }
-    if (results.affectedRows === 0) {
-      return res.status(404).json({ error: "Reservation not found" });
-    }
-
-    // Kiểm tra nếu status được cập nhật thành 3
-    if (updates.status === 3) {
-      const getTableIdSql = 'SELECT table_id FROM reservations WHERE id = ?';
-      connection.query(getTableIdSql, [id], (err, tableResults) => {
-        if (err) {
-          console.error('Error fetching table ID:', err);
-          return res.status(500).json({ error: 'Failed to fetch table ID' });
-        }
-
-        const table_id = tableResults[0]?.table_id;
-        if (table_id) {
-          const updateTableSql = 'UPDATE tables SET status = 0 WHERE id = ?';
-          connection.query(updateTableSql, [table_id], (err, updateResults) => {
-            if (err) {
-              console.error('Error updating table status:', err);
-              return res.status(500).json({ error: 'Failed to update table status' });
-            }
-            return res.status(200).json({ message: "Reservation and table status updated successfully" });
-          });
-        } else {
-          return res.status(404).json({ error: 'Table ID not found' });
-        }
-      });
-    }
-    // Xử lý các status khác: 0, 1, 2, hoặc 5
-    else if ([0, 1, 2, 5].includes(updates.status)) {
-      const getAndUpdateTableSql = `
-        UPDATE tables 
-        SET status = 1 
-        WHERE id = (SELECT table_id FROM reservations WHERE id = ?)
-      `;
-
-      connection.query(getAndUpdateTableSql, [id], (err, tableResults) => {
-        if (err) {
-          console.error("Error updating table status:", err);
-          return res.status(500).json({ error: "Failed to update table status" });
-        }
-        if (tableResults.affectedRows === 0) {
-          return res.status(404).json({ error: "Table not found for the reservation" });
-        }
-        return res.status(200).json({ message: "Reservations and table status updated successfully" });
-      });
-    } else {
-      return res.status(200).json({ message: "Reservations updated successfully" });
-    }
+      if (err) {
+          console.error('Error partially updating reservations:', err);
+          return res.status(500).json({ error: 'Failed to partially update reservations' });
+      }
+      if (results.affectedRows === 0) {
+          return res.status(404).json({ error: 'Reservations not found' });
+      }
+      res.status(200).json({ message: "Reservations update successfully" });
   });
 });
-
 
 // *Xóa reservations theo id
 router.delete("/:reservationId/:productId", (req, res) => {
