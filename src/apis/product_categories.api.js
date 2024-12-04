@@ -5,31 +5,42 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục sản phẩm
 router.get('/', (req, res) => {
-    const { search = '', page = 1, pageSize = 10 } = req.query;
+    const { search = '', searchStatus = '', page = 1, limit = 10 } = req.query;
+
+    // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
 
     // Đảm bảo page và pageSize là số nguyên
-    const pageNumber = parseInt(page, 10) || 1;
-    const size = parseInt(pageSize, 10) || 10;
-    const offset = (pageNumber - 1) * size;
+    const pageNumber = parseInt(page, 10);
+    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
+    const sea = `%${search}%`; // Thêm dấu % cho tìm kiếm
+    const seaStatus = `%${searchStatus}%`; // Thêm dấu % cho tìm kiếm
 
     // SQL truy vấn để lấy tổng số bản ghi
-    const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM product_categories WHERE name LIKE ? and status LIKE ?';
 
     // SQL truy vấn để lấy danh sách promotion phân trang
-    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?';
+    let sql = 'SELECT * FROM product_categories WHERE name LIKE ? and status LIKE ? ORDER BY id DESC';
+
+    // Nếu có phân trang, thêm LIMIT và OFFSET
+    const queryParams = [sea, seaStatus];
+    if (page && limit) {
+        sql += ' LIMIT ? OFFSET ?';
+        queryParams.push(limitNumber, offset);
+    }
 
     // Đếm tổng số bản ghi khớp với tìm kiếm
-    connection.query(sqlCount, [`%${search}%`], (err, countResults) => {
+    connection.query(sqlCount, [sea, seaStatus], (err, countResults) => {
         if (err) {
             console.error('Error counting product_categories:', err);
             return res.status(500).json({ error: 'Failed to count product_categories' });
         }
 
         const totalCount = countResults[0].total;
-        const totalPages = Math.ceil(totalCount / size); // Tính tổng số trang
+        const totalPages = Math.ceil(totalCount / limitNumber); // Tính tổng số trang
 
         // Lấy danh sách products cho trang hiện tại
-        connection.query(sql, [`%${search}%`, size, offset], (err, results) => {
+        connection.query(sql, queryParams, (err, results) => {
             if (err) {
                 console.error('Error fetching product_categories:', err);
                 return res.status(500).json({ error: 'Failed to fetch product_categories' });
@@ -41,7 +52,8 @@ router.get('/', (req, res) => {
                 results,
                 totalCount,
                 totalPages,
-                currentPage: pageNumber
+                currentPage: pageNumber,
+                limit: limitNumber,
             });
         });
     });
