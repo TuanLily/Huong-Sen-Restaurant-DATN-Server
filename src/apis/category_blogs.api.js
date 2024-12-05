@@ -4,7 +4,7 @@ const connection = require('../../index');
 
 // *Lấy tất cả danh sách danh mục blog với phân trang
 router.get('/', (req, res) => {
-    const { search = '', page = 1, limit = 5 } = req.query;
+    const { search = '', searchStatus = '', page = 1, limit = 5 } = req.query;
 
     // Chuyển đổi giá trị limit thành số nguyên, mặc định là 5 nếu không có
     const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 5;
@@ -13,22 +13,23 @@ router.get('/', (req, res) => {
     const pageNumber = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1;
     const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
     const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+    const seaStatus = `%${searchStatus}%`; // Thêm dấu % cho tìm kiếm
 
     // Câu truy vấn đếm tổng số danh mục blog
-    const sqlCount = 'SELECT COUNT(*) as total FROM blog_categories WHERE name LIKE ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM blog_categories WHERE name LIKE ? and status LIKE ?';
 
     // Câu truy vấn lấy danh sách danh mục blog
-    let sql = 'SELECT * FROM blog_categories WHERE name LIKE ? ORDER BY id DESC';
+    let sql = 'SELECT * FROM blog_categories WHERE name LIKE ? and status LIKE ? ORDER BY id DESC';
 
     // Nếu có phân trang, thêm LIMIT và OFFSET
-    const queryParams = [searchTerm];
+    const queryParams = [searchTerm, seaStatus];
     if (page && limit) {
         sql += ' LIMIT ? OFFSET ?';
         queryParams.push(limitNumber, offset);
     }
 
     // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
-    connection.query(sqlCount, [searchTerm], (err, countResults) => {
+    connection.query(sqlCount, [searchTerm, seaStatus], (err, countResults) => {
         if (err) {
             console.error('Error counting blog categories:', err);
             return res.status(500).json({ error: 'Failed to count blog categories' });
