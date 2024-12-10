@@ -60,6 +60,26 @@ router.get('/', (req, res) => {
 });
 
 // *Lấy tất cả danh sách danh mục sản phẩm hoạt động
+router.get('/noPage', (req, res) => {
+    // SQL truy vấn để lấy danh mục sản phẩm hoạt động
+    const sql = 'SELECT * FROM product_categories';
+
+    // Lấy danh sách danh mục
+    connection.query(sql, (err, results) => {
+        if (err) {
+            console.error('Error fetching product_categories:', err);
+            return res.status(500).json({ error: 'Failed to fetch product categories' });
+        }
+
+        // Trả về kết quả
+        res.status(200).json({
+            message: 'Show list product categories successfully',
+            results,
+        });
+    });
+});
+
+// *Lấy tất cả danh sách danh mục sản phẩm hoạt động
 router.get('/hoat_dong', (req, res) => {
     const { search = '', page = 1, limit = 10 } = req.query;
 
@@ -135,7 +155,6 @@ router.get('/danh_muc', (req, res) => {
         });
     });
 });
-
 
 // *Lấy thông tin danh mục sản phẩm theo id
 router.get('/:id', (req, res) => {
