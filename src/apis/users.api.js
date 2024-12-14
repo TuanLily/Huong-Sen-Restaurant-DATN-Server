@@ -6,7 +6,7 @@ const saltRounds = 10;
 
 // Lấy tất cả người dùng
 router.get('/', (req, res) => {
-    const { search = '', page = 1, limit = 10 } = req.query;
+    const { search = '', searchStatus = '', searchRoleId = '', searchUserType = '', page = 1, limit = 10 } = req.query;
 
     // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
     const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
@@ -15,22 +15,25 @@ router.get('/', (req, res) => {
     const pageNumber = parseInt(page, 10);
     const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
     const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+    const seaStatus = `%${searchStatus}%`;
+    const seaUserType = `%${searchUserType}%`;
+    const seaRoleID = `%${searchRoleId}%`;
 
     // Câu truy vấn đếm tổng số người dùng
-    const sqlCount = 'SELECT COUNT(*) as total FROM users WHERE fullname LIKE ?';
+    const sqlCount = 'SELECT COUNT(*) as total FROM users WHERE fullname LIKE ? and status LIKE ? and role_id LIKE ? and user_type LIKE ?';
 
     // Câu truy vấn lấy danh sách người dùng
-    let sql = 'SELECT * FROM users WHERE fullname LIKE ? ORDER BY id DESC';
+    let sql = 'SELECT * FROM users WHERE fullname LIKE ? and status LIKE ? and role_id LIKE ? and user_type LIKE ? ORDER BY id DESC';
 
     // Nếu có phân trang, thêm LIMIT và OFFSET
-    const queryParams = [searchTerm];
+    const queryParams = [searchTerm, seaStatus, seaRoleID, seaUserType];
     if (page && limit) {
         sql += ' LIMIT ? OFFSET ?';
         queryParams.push(limitNumber, offset);
     }
 
     // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
-    connection.query(sqlCount, [searchTerm], (err, countResults) => {
+    connection.query(sqlCount, [searchTerm, seaStatus, seaRoleID, seaUserType], (err, countResults) => {
         if (err) {
             console.error('Error counting users:', err);
             return res.status(500).json({ error: 'Failed to count users' });
