@@ -8,55 +8,69 @@ const saltRounds = 10;
 router.get('/', (req, res) => {
     const { search = '', searchStatus = '', searchRoleId = '', searchUserType = '', page = 1, limit = 10 } = req.query;
 
-    // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
-    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
-
-    // Chuyển đổi giá trị page thành số nguyên
+    // Chuyển đổi giá trị limit và page thành số nguyên
+    const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
     const pageNumber = parseInt(page, 10);
-    const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
-    const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
-    const seaStatus = `%${searchStatus}%`;
-    const seaUserType = `%${searchUserType}%`;
-    const seaRoleID = `%${searchRoleId}%`;
+    const offset = (pageNumber - 1) * limitNumber;
 
-    // Câu truy vấn đếm tổng số người dùng
-    const sqlCount = 'SELECT COUNT(*) as total FROM users WHERE fullname LIKE ? and status LIKE ? and role_id LIKE ? and user_type LIKE ?';
+    // Khởi tạo mảng conditions và params để xây dựng câu query động
+    let conditions = [];
+    let params = [];
 
-    // Câu truy vấn lấy danh sách người dùng
-    let sql = 'SELECT * FROM users WHERE fullname LIKE ? and status LIKE ? and role_id LIKE ? and user_type LIKE ? ORDER BY id DESC';
-
-    // Nếu có phân trang, thêm LIMIT và OFFSET
-    const queryParams = [searchTerm, seaStatus, seaRoleID, seaUserType];
-    if (page && limit) {
-        sql += ' LIMIT ? OFFSET ?';
-        queryParams.push(limitNumber, offset);
+    // Chỉ thêm điều kiện tìm kiếm nếu có giá trị filter
+    if (search) {
+        conditions.push('fullname LIKE ?');
+        params.push(`%${search}%`);
+    }
+    if (searchStatus) {
+        conditions.push('status LIKE ?');
+        params.push(`%${searchStatus}%`);
+    }
+    if (searchRoleId) {
+        conditions.push('role_id LIKE ?');
+        params.push(`%${searchRoleId}%`);
+    }
+    if (searchUserType) {
+        conditions.push('user_type LIKE ?');
+        params.push(`%${searchUserType}%`);
     }
 
-    // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
-    connection.query(sqlCount, [searchTerm, seaStatus, seaRoleID, seaUserType], (err, countResults) => {
+    // Tạo phần WHERE của câu query
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    // Câu truy vấn đếm tổng số người dùng
+    const sqlCount = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+
+    // Câu truy vấn lấy danh sách người dùng
+    let sql = `SELECT * FROM users ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`;
+    
+    // Thêm params cho LIMIT và OFFSET
+    params.push(limitNumber, offset);
+
+    // Thực hiện query đếm tổng số bản ghi
+    connection.query(sqlCount, params.slice(0, -2), (err, countResults) => {
         if (err) {
             console.error('Error counting users:', err);
             return res.status(500).json({ error: 'Failed to count users' });
         }
 
-        const totalCount = countResults[0].total; // Tổng số người dùng
-        const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
+        const totalCount = countResults[0].total;
+        const totalPages = Math.ceil(totalCount / limitNumber);
 
-        // Tiếp theo, lấy danh sách người dùng
-        connection.query(sql, queryParams, (err, results) => {
+        // Thực hiện query lấy danh sách người dùng
+        connection.query(sql, params, (err, results) => {
             if (err) {
                 console.error('Error fetching users:', err);
                 return res.status(500).json({ error: 'Failed to fetch users' });
             }
 
-            // Trả về kết quả
             res.status(200).json({
                 message: 'Show list users successfully',
                 results,
                 totalCount,
-                totalPages, // Tổng số trang
-                currentPage: pageNumber, // Trang hiện tại
-                limit: limitNumber, // Số bản ghi trên mỗi trang (limit)
+                totalPages,
+                currentPage: pageNumber,
+                limit: limitNumber,
             });
         });
     });
@@ -150,7 +164,7 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
 
     try {
-        // Kiểm tra nếu có trường mật khẩu thì mã hóa nó
+        // Kiểm tra n��i có trường mật khẩu thì mã hóa nó
         if (updates.password) {
             updates.password = await bcrypt.hash(updates.password, saltRounds);
         }
