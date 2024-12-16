@@ -408,36 +408,13 @@ router.patch("/reservation_ad/:id", async (req, res) => {
       await upsertProducts(reservationId, products);
     }
 
-    // Xử lý trạng thái bàn dựa trên status
-    const tableStatus = [3, 4].includes(status) ? 0 : 1;
-
-    const getTableIdQuery = `SELECT table_id FROM reservations WHERE id = ?`;
-    connection.query(getTableIdQuery, [reservationId], (err, tableResults) => {
-      if (err) {
-        console.error("Lỗi khi lấy table_id:", err);
-        return res.status(500).json({ message: "Lỗi khi lấy thông tin bàn", error: err.message });
-      }
-
-      const tableId = tableResults[0]?.table_id;
-      if (tableId) {
-        const updateTableStatusQuery = `UPDATE tables SET status = ? WHERE id = ?`;
-
-        connection.query(updateTableStatusQuery, [tableStatus, tableId], (err) => {
-          if (err) {
-            console.error("Lỗi khi cập nhật trạng thái bàn:", err);
-            return res.status(500).json({ message: "Lỗi khi cập nhật trạng thái bàn", error: err.message });
-          }
-          res.status(200).json({ message: "Cập nhật thông tin đặt chỗ và trạng thái bàn thành công" });
-        });
-      } else {
-        res.status(404).json({ message: "Không tìm thấy thông tin bàn cho đặt chỗ này" });
-      }
-    });
+    res.status(200).json({ message: "Cập nhật thông tin đặt chỗ thành công" });
   } catch (error) {
     console.error("Lỗi khi cập nhật đặt chỗ:", error);
     res.status(500).json({ message: "Có lỗi xảy ra", error: error.message });
   }
 });
+
 
 // *Cập nhật trạng thái theo id bằng phương thức patch
 router.patch('/:id', (req, res) => {
