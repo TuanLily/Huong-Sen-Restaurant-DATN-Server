@@ -4,7 +4,7 @@ const connection = require("../../index");
 
 // Lấy danh sách bàn với phân trang
 router.get('/', (req, res) => {
-  const { search = '', page = 1, limit = 10 } = req.query;
+  const { search = '', page = 1, limit = 10, searchCapacity = '' } = req.query;
 
   // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
   const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
@@ -13,22 +13,23 @@ router.get('/', (req, res) => {
   const pageNumber = parseInt(page, 10);
   const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
   const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+  const seaCapacity = `%${searchCapacity}%`;
 
   // Câu truy vấn đếm tổng số bàn
-  const sqlCount = 'SELECT COUNT(*) as total FROM tables WHERE number LIKE ?';
+  const sqlCount = 'SELECT COUNT(*) as total FROM tables WHERE number LIKE ? and capacity LIKE ?';
 
   // Câu truy vấn lấy danh sách bàn
-  let sql = 'SELECT * FROM tables WHERE number LIKE ? ORDER BY id DESC';
+  let sql = 'SELECT * FROM tables WHERE number LIKE ? and capacity LIKE ? ORDER BY id DESC';
 
   // Nếu có phân trang, thêm LIMIT và OFFSET
-  const queryParams = [searchTerm];
+  const queryParams = [searchTerm, seaCapacity];
   if (page && limit) {
       sql += ' LIMIT ? OFFSET ?';
       queryParams.push(limitNumber, offset);
   }
 
   // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
-  connection.query(sqlCount, [searchTerm], (err, countResults) => {
+  connection.query(sqlCount, [searchTerm, seaCapacity], (err, countResults) => {
       if (err) {
           console.error('Error counting tables:', err);
           return res.status(500).json({ error: 'Failed to count tables' });
