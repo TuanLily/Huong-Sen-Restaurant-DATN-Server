@@ -20,15 +20,15 @@ router.get('/', (req, res) => {
     // SQL truy vấn để tính doanh thu tổng và số lượng đơn hàng theo trạng thái cho từng tháng
     const sql = `
         SELECT 
-            MONTH(created_at) AS month, 
+            MONTH(reservation_date) AS month, 
             status,
             COUNT(*) AS orderCount,  -- Đếm số lượng đơn hàng theo trạng thái
             -- Tính tổng doanh thu chỉ cho những đơn hàng có trạng thái 'Hoàn thành đơn'
             CASE WHEN status = 5 THEN SUM(total_amount) ELSE 0 END AS totalRevenue 
         FROM reservations 
-        WHERE YEAR(created_at) = ?
-        GROUP BY MONTH(created_at), status
-        ORDER BY MONTH(created_at), status
+        WHERE YEAR(reservation_date) = ?
+        GROUP BY MONTH(reservation_date), status
+        ORDER BY MONTH(reservation_date), status
     `;
 
     // Thực hiện truy vấn
@@ -83,6 +83,9 @@ router.get('/', (req, res) => {
 router.get('/revenue', (req, res) => {
     const { startDate, endDate } = req.query;
 
+    const startDateTime = `${startDate} 00:00:00`;
+    const endDateTime = `${endDate} 23:59:59`;
+
     // Kiểm tra xem startDate và endDate có được truyền vào hay không
     if (!startDate || !endDate) {
         return res.status(400).json({ 
@@ -97,11 +100,11 @@ router.get('/revenue', (req, res) => {
             COUNT(*) AS orderCount
         FROM reservations
         WHERE status = 5 
-          AND created_at BETWEEN ? AND ?
+          AND reservation_date BETWEEN ? AND ?
     `;
 
     // Thực hiện truy vấn với tham số
-    connection.query(sql, [startDate, endDate], (err, results) => {
+    connection.query(sql, [startDateTime, endDateTime], (err, results) => {
         if (err) {
             console.error('Lỗi truy vấn dữ liệu:', err);
             return res.status(500).json({ error: 'Không thể lấy dữ liệu doanh thu.' });

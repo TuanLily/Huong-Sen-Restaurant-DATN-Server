@@ -118,6 +118,8 @@ router.post("/", async (req, res) => {
 router.post("/get_pay_url", async (req, res) => {
   const { amount, reservationId } = req.body;
 
+  console.log (amount, reservationId);
+
   try {
     // Kiểm tra xem mã đơn reservation_code đã tồn tại trong cơ sở dữ liệu hay chưa
     const checkQuery = `SELECT reservation_code FROM reservations WHERE id = ?`;
@@ -216,6 +218,7 @@ router.post("/get_pay_url", async (req, res) => {
     const { payUrl } = result.data;
 
     // Trả về payUrl cho client
+    console.log (payUrl);
     return res.status(200).json({ payUrl });
   } catch (error) {
     console.error("Error in MoMo payment request:", error);
