@@ -118,7 +118,11 @@ router.post("/", async (req, res) => {
 router.post("/get_pay_url", async (req, res) => {
   const { amount, reservationId } = req.body;
 
-  console.log (amount, reservationId);
+  // Hàm tạo mã ngẫu nhiên với hai chữ HS và 8 chữ số cuối
+  const generateReservationCode = () => {
+    const randomNumber = Math.floor(10000000 + Math.random() * 90000000); // Tạo số ngẫu nhiên gồm 8 chữ số
+    return `HS${randomNumber}`;
+  };
 
   try {
     // Kiểm tra xem mã đơn reservation_code đã tồn tại trong cơ sở dữ liệu hay chưa
@@ -138,11 +142,33 @@ router.post("/get_pay_url", async (req, res) => {
 
     let reseCode;
     if (reservationCode) {
-      // Nếu đã có mã reservation_code trong cơ sở dữ liệu, sử dụng mã đó
-      reseCode = reservationCode;
+      reseCode = generateReservationCode();
+      // Cập nhật reservation_code vào cơ sở dữ liệu
+      const updateQuery = `UPDATE reservations SET reservation_code = ? WHERE id = ?`;
+      await new Promise((resolve, reject) => {
+        connection.query(updateQuery, [reseCode, reservationId], (err, results) => {
+          if (err) {
+            console.error("Error updating reservation_code:", err);
+            reject(err);
+          } else {
+            resolve(results);
+          }
+        });
+      });
     } else {
-      // Nếu chưa có, tạo mã mới
-      reseCode = "HS" + new Date().getTime();
+      reseCode = generateReservationCode();
+      // Cập nhật reservation_code vào cơ sở dữ liệu
+      const updateQuery = `UPDATE reservations SET reservation_code = ? WHERE id = ?`;
+      await new Promise((resolve, reject) => {
+        connection.query(updateQuery, [reseCode, reservationId], (err, results) => {
+          if (err) {
+            console.error("Error updating reservation_code:", err);
+            reject(err);
+          } else {
+            resolve(results);
+          }
+        });
+      });
     }
 
     var orderInfo = "pay with MoMo";
@@ -218,7 +244,6 @@ router.post("/get_pay_url", async (req, res) => {
     const { payUrl } = result.data;
 
     // Trả về payUrl cho client
-    console.log (payUrl);
     return res.status(200).json({ payUrl });
   } catch (error) {
     console.error("Error in MoMo payment request:", error);
@@ -228,7 +253,6 @@ router.post("/get_pay_url", async (req, res) => {
     });
   }
 });
-
 
 router.post("/callback", async (req, res) => {
   console.log("callback:: ");
