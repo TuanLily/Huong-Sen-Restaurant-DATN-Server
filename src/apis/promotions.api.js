@@ -78,7 +78,7 @@ router.get('/:id', (req, res) => {
 
 // *Thêm promotions mới
 router.post('/', (req, res) => {
-    const { code_name , discount , quantity , valid_from , valid_to } = req.body;
+    const { code_name , discount , quantity , valid_from , valid_to , type } = req.body;
 
     if (!code_name) {
         return res.status(400).json({ error: 'Code_name is required' });
@@ -95,9 +95,12 @@ router.post('/', (req, res) => {
     if (!valid_to) {
         return res.status(400).json({ error: 'Valid_to is required' });
     }
+    if (!type) {
+        return res.status(400).json({ error: 'Type is required' });
+    }
 
-    const sql = 'INSERT INTO promotions (code_name , discount , quantity , valid_from , valid_to) VALUES (?, ?, ?, ?, ?)';
-    connection.query(sql, [code_name , discount , quantity , valid_from , valid_to], (err, results) => {
+    const sql = 'INSERT INTO promotions (code_name , discount , quantity , valid_from , valid_to , type) VALUES (?, ?, ?, ?, ?, ?)';
+    connection.query(sql, [code_name , discount , quantity , valid_from , valid_to , type], (err, results) => {
         if (err) {
             console.error('Error creating promotions:', err);
             return res.status(500).json({ error: 'Failed to create promotions', promotionId: results.insertId });
