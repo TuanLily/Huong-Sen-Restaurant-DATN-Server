@@ -243,6 +243,8 @@ router.post("/get_pay_url", async (req, res) => {
     // Lấy payUrl từ phản hồi của MoMo
     const { payUrl } = result.data;
 
+    console.log (result.data)
+
     // Trả về payUrl cho client
     return res.status(200).json({ payUrl });
   } catch (error) {
@@ -449,26 +451,6 @@ router.post("/callback", async (req, res) => {
     // Cập nhật trạng thái của đơn đặt chỗ trong bảng reservations
     const newStatus = await updateReservationStatus(orderId);
     return res.status(200).json({ message: `Reservation status updated to ${newStatus}.` });
-    // const updateStatusQuery = `UPDATE reservations SET status = 3 WHERE reservation_code = ?`;
-
-    // try {
-    //   await new Promise((resolve, reject) => {
-    //     connection.query(updateStatusQuery, [orderId], (err) => {
-    //       if (err) {
-    //         console.error("Error updating reservation status:", err);
-    //         reject(err);
-    //       } else {
-    //         resolve();
-    //       }
-    //     });
-    //   });
-    //   console.log("Reservation status updated successfully");
-    // } catch (error) {
-    //   console.error("Error during status update:", error);
-    //   return res
-    //     .status(500)
-    //     .json({ message: "Error updating reservation status." });
-    // }
   } else if (resultCode === 49) {
     // Giao dịch quá hạn
     console.log("Giao dịch đã hết hạn.");
