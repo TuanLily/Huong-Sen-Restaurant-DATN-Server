@@ -377,7 +377,6 @@ router.patch("/reservation_ad/:id", async (req, res) => {
     party_size,
     note,
     total_amount,
-    deposit,
     status,
     products,
   } = req.body;
@@ -387,7 +386,7 @@ router.patch("/reservation_ad/:id", async (req, res) => {
     const updateReservationQuery = `
             UPDATE reservations
             SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
-                party_size = ?, note = ?, total_amount = ?, deposit = ?, status = ?
+                party_size = ?, note = ?, total_amount = ?, status = ?
             WHERE id = ?`;
 
     await connection.query(updateReservationQuery, [
@@ -398,7 +397,6 @@ router.patch("/reservation_ad/:id", async (req, res) => {
       party_size,
       note,
       total_amount,
-      deposit,
       status,
       reservationId,
     ]);
