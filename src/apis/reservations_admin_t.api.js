@@ -384,10 +384,10 @@ router.patch("/reservation_ad/:id", async (req, res) => {
   try {
     // Cập nhật thông tin đặt chỗ
     const updateReservationQuery = `
-            UPDATE reservations
-            SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
-                party_size = ?, note = ?, total_amount = ?, status = ?
-            WHERE id = ?`;
+      UPDATE reservations
+      SET fullname = ?, tel = ?, email = ?, reservation_date = ?,
+          party_size = ?, note = ?, total_amount = ?, status = ?
+      WHERE id = ?`;
 
     await connection.query(updateReservationQuery, [
       fullname,
@@ -406,31 +406,25 @@ router.patch("/reservation_ad/:id", async (req, res) => {
       await upsertProducts(reservationId, products);
     }
 
-    res.status(200).json({ message: "Cập nhật thông tin đặt chỗ thành công" });
-    const tableStatus = [3, 4].includes(status) ? 0 : 1;
+    // Xác định trạng thái bàn ăn: 0 là có khách, 1 là không có khách
+    const tableStatus = [3, 4].includes(status) ? 0 : 1; // Ví dụ: Status 3, 4 đại diện cho trạng thái bàn "có khách"
 
+    // Lấy table_id từ bảng reservations
     const getTableIdQuery = `SELECT table_id FROM reservations WHERE id = ?`;
-    connection.query(getTableIdQuery, [reservationId], (err, tableResults) => {
-      if (err) {
-        console.error("Lỗi khi lấy table_id:", err);
-        return res.status(500).json({ message: "Lỗi khi lấy thông tin bàn", error: err.message });
-      }
+    const tableResults = await connection.query(getTableIdQuery, [reservationId]);
 
-      const tableId = tableResults[0]?.table_id;
-      if (tableId) {
-        const updateTableStatusQuery = `UPDATE tables SET status = ? WHERE id = ?`;
+    if (!tableResults.length) {
+      return res.status(404).json({ message: "Không tìm thấy thông tin bàn cho đặt chỗ này" });
+    }
 
-        connection.query(updateTableStatusQuery, [tableStatus, tableId], (err) => {
-          if (err) {
-            console.error("Lỗi khi cập nhật trạng thái bàn:", err);
-            return res.status(500).json({ message: "Lỗi khi cập nhật trạng thái bàn", error: err.message });
-          }
-          res.status(200).json({ message: "Cập nhật thông tin đặt chỗ và trạng thái bàn thành công" });
-        });
-      } else {
-        res.status(404).json({ message: "Không tìm thấy thông tin bàn cho đặt chỗ này" });
-      }
-    });
+    const tableId = tableResults[0].table_id;
+
+    // Cập nhật trạng thái bàn ăn
+    const updateTableStatusQuery = `UPDATE tables SET status = ? WHERE id = ?`;
+    await connection.query(updateTableStatusQuery, [tableStatus, tableId]);
+
+    // Phản hồi thành công
+    res.status(200).json({ message: "Cập nhật thông tin đặt chỗ và trạng thái bàn thành công" });
   } catch (error) {
     console.error("Lỗi khi cập nhật đặt chỗ:", error);
     res.status(500).json({ message: "Có lỗi xảy ra", error: error.message });
