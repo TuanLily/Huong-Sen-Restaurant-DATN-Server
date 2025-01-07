@@ -3,58 +3,67 @@ const router = express.Router();
 const connection = require("../../index");
 
 // Lấy danh sách bàn với phân trang
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
   const { search = '', page = 1, limit = 10, searchCapacity = '' } = req.query;
 
-  // Chuyển đổi giá trị limit thành số nguyên, mặc định là 10 nếu không có
-  const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10; // Kiểm tra limit có phải là số nguyên dương không, nếu không thì dùng 10
-
-  // Chuyển đổi giá trị page thành số nguyên
+  const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
   const pageNumber = parseInt(page, 10);
-  const offset = (pageNumber - 1) * limitNumber; // Tính toán offset
-  const searchTerm = `%${search}%`; // Thêm dấu % cho tìm kiếm
+  const offset = (pageNumber - 1) * limitNumber;
+  const searchTerm = `%${search}%`;
   const seaCapacity = `%${searchCapacity}%`;
 
   // Câu truy vấn đếm tổng số bàn
-  const sqlCount = 'SELECT COUNT(*) as total FROM tables WHERE number LIKE ? and capacity LIKE ?';
+  const sqlCount = `
+    SELECT COUNT(*) as total 
+    FROM tables 
+    LEFT JOIN reservations ON tables.id = reservations.table_id 
+    WHERE tables.number LIKE ? AND tables.capacity LIKE ?
+  `;
 
   // Câu truy vấn lấy danh sách bàn
-  let sql = 'SELECT * FROM tables WHERE number LIKE ? and capacity LIKE ? ORDER BY id DESC';
+  let sql = `
+    SELECT 
+      tables.id, 
+      tables.number, 
+      tables.capacity, 
+      tables.status, 
+      reservations.fullname AS guest_name
+    FROM tables
+    LEFT JOIN reservations ON tables.id = reservations.table_id
+    WHERE tables.number LIKE ? AND tables.capacity LIKE ?
+    ORDER BY tables.id DESC
+  `;
 
-  // Nếu có phân trang, thêm LIMIT và OFFSET
   const queryParams = [searchTerm, seaCapacity];
   if (page && limit) {
-      sql += ' LIMIT ? OFFSET ?';
-      queryParams.push(limitNumber, offset);
+    sql += " LIMIT ? OFFSET ?";
+    queryParams.push(limitNumber, offset);
   }
 
-  // Đầu tiên, lấy tổng số bản ghi để tính tổng số trang
   connection.query(sqlCount, [searchTerm, seaCapacity], (err, countResults) => {
+    if (err) {
+      console.error("Error counting tables:", err);
+      return res.status(500).json({ error: "Failed to count tables" });
+    }
+
+    const totalCount = countResults[0].total;
+    const totalPages = Math.ceil(totalCount / limitNumber);
+
+    connection.query(sql, queryParams, (err, results) => {
       if (err) {
-          console.error('Error counting tables:', err);
-          return res.status(500).json({ error: 'Failed to count tables' });
+        console.error("Error fetching tables:", err);
+        return res.status(500).json({ error: "Failed to fetch tables" });
       }
 
-      const totalCount = countResults[0].total; // Tổng số bàn
-      const totalPages = Math.ceil(totalCount / limitNumber); // Tổng số trang
-
-      // Tiếp theo, lấy danh sách bàn
-      connection.query(sql, queryParams, (err, results) => {
-          if (err) {
-              console.error('Error fetching tables:', err);
-              return res.status(500).json({ error: 'Failed to fetch tables' });
-          }
-
-          // Trả về kết quả
-          res.status(200).json({
-              message: 'Show list tables successfully',
-              results,
-              totalCount,
-              totalPages, // Tổng số trang
-              currentPage: pageNumber, // Trang hiện tại
-              limit: limitNumber, // Số bản ghi trên mỗi trang (limit)
-          });
+      res.status(200).json({
+        message: "Show list tables successfully",
+        results,
+        totalCount,
+        totalPages,
+        currentPage: pageNumber,
+        limit: limitNumber,
       });
+    });
   });
 });
 

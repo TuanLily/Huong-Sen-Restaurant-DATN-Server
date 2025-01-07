@@ -4,31 +4,42 @@ const connection = require("../../index");
 
 // *Lấy tất cả danh sách đặt chỗ
 router.get("/", (req, res) => {
-  const sql = "SELECT * FROM reservations";
+  const sql = `
+    SELECT tables.id, tables.number, tables.capacity, tables.status, reservations.fullname as guest_name
+    FROM tables
+    LEFT JOIN reservations ON tables.id = reservations.table_id
+  `;
   connection.query(sql, (err, results) => {
     if (err) {
-      console.error("Error fetching reservations:", err);
-      return res.status(500).json({ error: "Failed to fetch reservations" });
+      console.error("Error fetching tables:", err);
+      return res.status(500).json({ error: "Failed to fetch tables" });
     }
     res.status(200).json(results);
   });
 });
 
+
 // *Lấy thông tin đặt chỗ theo id
 router.get("/:id", (req, res) => {
   const { id } = req.params;
-  const sql = "SELECT * FROM reservations WHERE id = ?";
+  const sql = `
+    SELECT tables.id, tables.number, tables.capacity, tables.status, reservations.fullname as guest_name
+    FROM tables
+    LEFT JOIN reservations ON tables.id = reservations.table_id
+    WHERE tables.id = ?
+  `;
   connection.query(sql, [id], (err, results) => {
     if (err) {
-      console.error("Error fetching reservation:", err);
-      return res.status(500).json({ error: "Failed to fetch reservation" });
+      console.error("Error fetching table:", err);
+      return res.status(500).json({ error: "Failed to fetch table" });
     }
     if (results.length === 0) {
-      return res.status(404).json({ error: "Reservation not found" });
+      return res.status(404).json({ error: "Table not found" });
     }
     res.status(200).json(results[0]);
   });
 });
+
 
 // *Thêm đặt chỗ mới
 router.post("/", (req, res) => {
