@@ -678,18 +678,20 @@ router.post("/", (req, res) => {
     products,
   } = req.body;
 
-  console.log(req.body);
+  // Xác định sức chứa bàn dựa vào số người
 
-  // Xác định sức chứa bàn cần tìm dựa vào số người
   let requiredCapacity;
   if (partySize === 1 || partySize === 2) {
-    requiredCapacity = 2;
+    requiredCapacity = 2; // Bàn cho 2 người
   } else if (partySize >= 3 && partySize <= 4) {
-    requiredCapacity = 4;
-  } else if (partySize >= 5) {
-    requiredCapacity = 8;
+    requiredCapacity = 4; // Bàn cho 4 người
+  } else if (partySize >= 5 && partySize <= 6) {
+    requiredCapacity = 6; // Bàn cho 6 người
+  } else if (partySize >= 7 && partySize <= 8) {
+    requiredCapacity = 8; // Bàn cho 8 người
+  } else {
+    requiredCapacity = 8; // Nhóm lớn hơn 8 người vẫn chỉ chọn bàn 8 người
   }
-
   // SQL để tìm bàn phù hợp
   const findTableSql = `
     SELECT id, number, capacity
@@ -711,7 +713,10 @@ router.post("/", (req, res) => {
       }
 
       if (tableResults.length === 0) {
-        return rollbackTransaction(res, "Không có bàn phù hợp cho số lượng người này");
+        return rollbackTransaction(
+          res,
+          "Không có bàn phù hợp cho số lượng người này"
+        );
       }
 
       const table = tableResults[0]; // Lấy bàn đầu tiên phù hợp
@@ -745,25 +750,38 @@ router.post("/", (req, res) => {
 
           const reservationId = results.insertId; // Lấy ID của reservation vừa thêm
 
-          // Cập nhật trạng thái bàn thành 0
-          const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
-          connection.query(updateTableSql, [tableId], (err) => {
-            if (err) {
-              return rollbackTransaction(res, "Không thể cập nhật trạng thái bàn", err);
-            }
+          // Kiểm tra nếu ngày đặt bàn là hôm nay
+          const today = new Date().toISOString().split("T")[0];
+          const reservationDate = new Date(reservation_date)
+            .toISOString()
+            .split("T")[0];
 
-            // Thêm sản phẩm nếu có
-            if (products && products.length > 0) {
-              addProductsToReservation(reservationId, products, res);
-            } else {
-              commitTransaction(res, "Đặt bàn thành công", { reservationId, table });
-            }
-          });
+          if (reservationDate === today) {
+            // Nếu ngày đặt bàn là hôm nay, cập nhật trạng thái bàn thành 0
+            const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
+            connection.query(updateTableSql, [tableId], (err) => {
+              if (err) {
+                return rollbackTransaction(
+                  res,
+                  "Không thể cập nhật trạng thái bàn",
+                  err
+                );
+              }
+            });
+          }
+
+          // Thêm sản phẩm nếu có
+          if (products && products.length > 0) {
+            addProductsToReservation(reservationId, products, res);
+          } else {
+            commitTransaction(res, "Đặt bàn thành công", { reservationId, table });
+          }
         }
       );
     });
   });
 });
+
 
 // Lọc bàn ăn theo ngày với phân trang
 router.get("/filter-by-date", (req, res) => {
