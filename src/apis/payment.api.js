@@ -314,7 +314,7 @@ router.post("/pay_balance", async (req, res) => {
 
     var orderInfo = "pay with MoMo";
     var partnerCode = "MOMO";
-    var redirectUrl = "http://localhost:3001/confirm";
+    var redirectUrl = "http://localhost:5301/reservation";
     var ipnUrl = `${process.env.LOCAL_URL}/api/public/payment/callback`;
     var requestType = "payWithMethod";
     var requestId = reseCode;
@@ -415,13 +415,14 @@ const updateReservationStatus = async (orderId) => {
     });
 
     // Kiểm tra và cập nhật trạng thái
-    const newStatus = currentStatus == 3 ? 5 : 3;
+    const newStatus = currentStatus == 4 ? 5 : 3;
     await new Promise((resolve, reject) => {
       connection.query(updateStatusQuery, [newStatus, orderId], (err) => {
         if (err) {
           console.error("Error updating reservation status:", err);
           reject(err);
         } else {
+          console.log ('hahahhahahah');
           resolve();
         }
       });
