@@ -56,7 +56,7 @@ router.post("/", (req, res) => {
     total_amount,
   } = req.body;
 
-  const status = 1;
+  const status = 1; // Trạng thái mặc định là "Chờ xác nhận"
   const validTotalAmount = total_amount ? parseFloat(total_amount) : 0;
   const deposit = validTotalAmount * 0.3;
 
@@ -73,17 +73,29 @@ router.post("/", (req, res) => {
   } else {
     requiredCapacity = 8; // Nhóm lớn hơn 8 người vẫn chỉ chọn bàn 8 người
   }
-  
 
   // SQL để tìm bàn phù hợp
-  const findTableSql = `
-    SELECT id, number, capacity
-    FROM tables
-    WHERE capacity = ? AND status = 1
-    ORDER BY id ASC
-    LIMIT 1
-  `;
+  const today = new Date().toISOString().split("T")[0];
+  const reservationDate = new Date(reservation_date).toISOString().split("T")[0];
 
+  const findTableSql =
+    reservationDate === today
+      ? `
+        SELECT id, number, capacity
+        FROM tables
+        WHERE capacity >= ? AND status = 1
+        ORDER BY capacity ASC, id ASC
+        LIMIT 1
+      `
+      : `
+        SELECT id, number, capacity
+        FROM tables
+        WHERE capacity >= ? AND (status = 1 OR status = 0)
+        ORDER BY status DESC, capacity ASC, id ASC
+        LIMIT 1
+      `;
+
+  // Thực thi truy vấn để tìm bàn
   connection.query(findTableSql, [requiredCapacity], (err, tableResults) => {
     if (err) {
       console.error("Error finding table:", err);
@@ -100,9 +112,11 @@ router.post("/", (req, res) => {
     const tableId = table.id;
 
     // SQL để thêm đặt bàn (bao gồm table_id)
-    const sql = `INSERT INTO reservations 
-                 (reservation_code, user_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status, table_id) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `
+      INSERT INTO reservations 
+      (reservation_code, user_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status, table_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
     connection.query(
       sql,
@@ -129,12 +143,9 @@ router.post("/", (req, res) => {
             .json({ error: "Failed to create reservation" });
         }
 
-        // Kiểm tra nếu reservation_date là ngày hiện tại
-        const today = new Date().toISOString().split("T")[0];
-        const reservationDate = new Date(reservation_date)
-          .toISOString()
-          .split("T")[0];
+        const reservationId = results.insertId;
 
+        // Kiểm tra nếu reservation_date là ngày hiện tại
         if (reservationDate === today) {
           // Nếu ngày đặt bàn là hôm nay, cập nhật trạng thái bàn thành 0
           const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
@@ -148,6 +159,7 @@ router.post("/", (req, res) => {
           });
         }
 
+        // Xử lý giảm số lượng khuyến mãi nếu có
         if (promotion_id) {
           const updatePromotionSql =
             "UPDATE promotions SET quantity = quantity - 1 WHERE id = ? AND quantity > 0";
@@ -160,14 +172,14 @@ router.post("/", (req, res) => {
             }
             res.status(201).json({
               message: "Reservation created successfully",
-              id: results.insertId,
+              id: reservationId,
               table,
             });
           });
         } else {
           res.status(201).json({
             message: "Reservation created successfully",
-            id: results.insertId,
+            id: reservationId,
             table,
           });
         }
