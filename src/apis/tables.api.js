@@ -67,51 +67,216 @@ router.get("/", (req, res) => {
   });
 });
 
-// Lọc bàn ăn theo ngày với phân trang
+// Lọc bàn ăn theo ngày
+// router.get("/filter-by-date", (req, res) => {
+//   const { date, page = 1, limit = 10, searchCapacity = '' } = req.query;
+
+//   console.log (searchCapacity)
+//   const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
+//   const pageNumber = parseInt(page, 10);
+//   const offset = (pageNumber - 1) * limitNumber;
+
+//   // Câu truy vấn đếm tổng số bàn
+//   const sqlCount = `
+//     SELECT COUNT(*) as total 
+//     FROM tables t
+//     LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ? AND r.status IN (3, 4)
+//     WHERE t.status IN (0, 1)
+//     ${searchCapacity ? 'AND t.capacity = ?' : ''}
+//   `;
+
+//   // Câu truy vấn lấy danh sách bàn
+//   const sql = `
+//     SELECT t.id, t.number, t.capacity, 
+//            CASE 
+//              WHEN r.table_id IS NOT NULL AND t.status = 0 THEN 0 -- Có khách
+//              ELSE 1 -- Bàn trống
+//            END AS status,
+//            GROUP_CONCAT(r.fullname) AS guest_name
+//     FROM tables t
+//     LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ? AND r.status IN (3, 4)
+//     WHERE t.status IN (0, 1)
+//     ${searchCapacity ? 'AND t.capacity = ?' : ''}
+//     GROUP BY t.id
+//     ORDER BY t.number ASC
+//     LIMIT ? OFFSET ?
+//   `;
+
+//   const queryParamsCount = [date];
+//   const queryParams = [date];
+
+//   if (searchCapacity) {
+//     queryParamsCount.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số đếm
+//     queryParams.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số truy vấn
+//   }
+
+//   connection.query(sqlCount, queryParamsCount, (err, countResults) => {
+//     if (err) {
+//       console.error("Lỗi khi đếm bàn:", err);
+//       return res.status(500).json({ error: "Không thể đếm bàn" });
+//     }
+
+//     const totalCount = countResults[0].total;
+//     const totalPages = Math.ceil(totalCount / limitNumber);
+
+//     queryParams.push(limitNumber, offset); // Thêm limit và offset vào tham số truy vấn
+
+//     connection.query(sql, queryParams, (err, results) => {
+//       if (err) {
+//         console.error("Lỗi khi lấy danh sách bàn:", err);
+//         return res.status(500).json({ error: "Không thể lấy danh sách bàn" });
+//       }
+
+//       res.status(200).json({
+//         message: "Hiển thị danh sách bàn theo ngày thành công",
+//         results,
+//         totalCount,
+//         totalPages,
+//         currentPage: pageNumber,
+//         limit: limitNumber,
+//       });
+//     });
+//   });
+// });
+
+// Lọc bàn ăn theo ngày
+// router.get("/filter-by-date", (req, res) => {
+//   const { date, page = 1, limit = 10, searchCapacity = '' } = req.query;
+
+//   const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
+//   const pageNumber = parseInt(page, 10);
+//   const offset = (pageNumber - 1) * limitNumber;
+
+//   // Câu truy vấn đếm tổng số bàn
+//   const sqlCount = `
+//     SELECT COUNT(*) as total 
+//     FROM tables t
+//     LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ? AND r.status IN (3, 4)
+//     WHERE 1
+//     ${searchCapacity ? 'AND t.capacity = ?' : ''}
+//   `;
+
+//   // Câu truy vấn lấy danh sách bàn
+//   const sql = `
+//     SELECT t.id, t.number, t.capacity, 
+//            CASE 
+//              WHEN r.table_id IS NOT NULL THEN 0 -- Có khách
+//              ELSE 1 -- Bàn trống
+//            END AS status,
+//            GROUP_CONCAT(r.fullname) AS guest_name,
+//            r.id AS reservation_id -- Thêm id của reservation nếu có khách
+//     FROM tables t
+//     LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ? AND r.status IN (3, 4)
+//     WHERE 1
+//     ${searchCapacity ? 'AND t.capacity = ?' : ''}
+//     GROUP BY t.id
+//     ORDER BY t.number ASC
+//     LIMIT ? OFFSET ?
+//   `;
+
+//   const queryParamsCount = [date];
+//   const queryParams = [date];
+
+//   if (searchCapacity) {
+//     queryParamsCount.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số đếm
+//     queryParams.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số truy vấn
+//   }
+
+//   connection.query(sqlCount, queryParamsCount, (err, countResults) => {
+//     if (err) {
+//       console.error("Lỗi khi đếm bàn:", err);
+//       return res.status(500).json({ error: "Không thể đếm bàn" });
+//     }
+
+//     const totalCount = countResults[0].total;
+//     const totalPages = Math.ceil(totalCount / limitNumber);
+
+//     queryParams.push(limitNumber, offset); // Thêm limit và offset vào tham số truy vấn
+
+//     connection.query(sql, queryParams, (err, results) => {
+//       if (err) {
+//         console.error("Lỗi khi lấy danh sách bàn:", err);
+//         return res.status(500).json({ error: "Không thể lấy danh sách bàn" });
+//       }
+
+//       res.status(200).json({
+//         message: "Hiển thị danh sách bàn theo ngày thành công",
+//         results,
+//         totalCount,
+//         totalPages,
+//         currentPage: pageNumber,
+//         limit: limitNumber,
+//       });
+//     });
+//   });
+// });
+
 router.get("/filter-by-date", (req, res) => {
-  const { date, page = 1, pageSize = 8 } = req.query;
+  const { date, page = 1, limit = 10, searchCapacity = '' } = req.query;
 
-  console.log("Chj date::", date);
+  const limitNumber = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
+  const pageNumber = parseInt(page, 10);
+  const offset = (pageNumber - 1) * limitNumber;
 
-  if (!date) {
-    return res.status(400).json({ error: "Ngày là bắt buộc" });
-  }
-
-  const pageNumber = parseInt(page, 10) || 1;
-  const size = parseInt(pageSize, 10) || 8; // Sử dụng giá trị mặc định là 8
-  const offset = (pageNumber - 1) * size;
-
+  // Câu truy vấn đếm tổng số bàn
   const sqlCount = `
     SELECT COUNT(*) as total 
     FROM tables t
-    LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ?
-    WHERE t.status IN (0, 1)
+    LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ? AND r.status IN (3, 4)
+    WHERE 1
+    ${searchCapacity ? 'AND t.capacity = ?' : ''}
   `;
 
+  // Câu truy vấn lấy danh sách bàn
   const sql = `
-    SELECT t.id, t.number, t.capacity, 
-           CASE 
-             WHEN r.table_id IS NOT NULL THEN 0 -- Đang phục vụ
-             ELSE 1 -- Bàn trống
-           END AS status,
-           r.reservation_date 
-    FROM tables t
-    LEFT JOIN reservations r ON t.id = r.table_id AND DATE(r.reservation_date) = ?
-    WHERE t.status IN (0, 1)
-    ORDER BY t.number ASC
+    SELECT 
+      t.id AS table_id, 
+      t.number, 
+      t.capacity, 
+      CASE 
+        WHEN r.table_id IS NOT NULL THEN 0 -- Có khách
+        ELSE 1 -- Bàn trống
+      END AS status,
+      GROUP_CONCAT(r.fullname) AS guest_name,
+      GROUP_CONCAT(r.id) AS reservation_ids -- Lấy tất cả id của reservations
+    FROM 
+      tables t
+    LEFT JOIN 
+      reservations r 
+    ON 
+      t.id = r.table_id 
+      AND DATE(r.reservation_date) = ? 
+      AND r.status IN (3, 4)
+    WHERE 
+      1
+      ${searchCapacity ? 'AND t.capacity = ?' : ''}
+    GROUP BY 
+      t.id
+    ORDER BY 
+      t.number ASC
     LIMIT ? OFFSET ?
   `;
 
-  connection.query(sqlCount, [date], (err, countResults) => {
+  const queryParamsCount = [date];
+  const queryParams = [date];
+
+  if (searchCapacity) {
+    queryParamsCount.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số đếm
+    queryParams.push(parseInt(searchCapacity, 10)); // Thêm sức chứa vào tham số truy vấn
+  }
+
+  connection.query(sqlCount, queryParamsCount, (err, countResults) => {
     if (err) {
       console.error("Lỗi khi đếm bàn:", err);
       return res.status(500).json({ error: "Không thể đếm bàn" });
     }
 
     const totalCount = countResults[0].total;
-    const totalPages = Math.ceil(totalCount / size);
+    const totalPages = Math.ceil(totalCount / limitNumber);
 
-    connection.query(sql, [date, size, offset], (err, results) => {
+    queryParams.push(limitNumber, offset); // Thêm limit và offset vào tham số truy vấn
+
+    connection.query(sql, queryParams, (err, results) => {
       if (err) {
         console.error("Lỗi khi lấy danh sách bàn:", err);
         return res.status(500).json({ error: "Không thể lấy danh sách bàn" });
@@ -123,31 +288,11 @@ router.get("/filter-by-date", (req, res) => {
         totalCount,
         totalPages,
         currentPage: pageNumber,
+        limit: limitNumber,
       });
     });
   });
 });
-
-
-// Lấy thông tin bàn theo ID
-router.get("/:id", (req, res) => {
-  const { id } = req.params;
-  const sql = "SELECT * FROM tables WHERE id = ?";
-  connection.query(sql, [id], (err, results) => {
-    if (err) {
-      console.error("Lỗi khi lấy thông tin bàn:", err);
-      return res.status(500).json({ error: "Không thể lấy thông tin bàn" });
-    }
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Không tìm thấy bàn " });
-    }
-    res.status(200).json({
-      message: "Hiển thị thông tin bàn thành công",
-      data: results[0],
-    });
-  });
-});
-
 
 
 // Thêm bàn mới
