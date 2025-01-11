@@ -126,9 +126,10 @@ router.get("/myBooking/:user_id", (req, res) => {
 
   // SQL truy vấn để lấy danh sách reservations phân trang (thêm điều kiện user_id)
   const sql = `
-        SELECT r.*, t.number AS tableName 
+        SELECT r.*, t.number AS tableName, p.discount 
         FROM reservations r
         LEFT JOIN tables t ON r.table_id = t.id
+        LEFT JOIN promotions p ON r.promotion_id = p.id
         WHERE r.fullname LIKE ? 
         AND r.tel LIKE ? 
         AND r.email LIKE ? 

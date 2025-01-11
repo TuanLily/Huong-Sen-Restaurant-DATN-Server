@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 const connection = require('../../index');
 
 router.post('/send', (req, res) => {
-    const { dishes, dishList, customerInfo, currentTotal, VAT10 } = req.body;
+    const { dishes, dishList, customerInfo, currentTotal, VAT10, discount } = req.body;
 
     // Hàm định dạng giá
     const formatCurrency = (value) => {
@@ -61,9 +61,9 @@ router.post('/send', (req, res) => {
             <ul>
                 <li><strong>Tổng tiền ban đầu:</strong> ${formatCurrency(customerInfo.total_amount)}</li>
                 <li><strong>Tiền đã đặt cọc:</strong> ${formatCurrency(customerInfo.deposit)}</li>
-                <li><strong>Tạm tính:</strong> ${formatCurrency(currentTotal)} <strong>Tạm tính:</strong> ${formatCurrency(VAT10)}</li>
-                <li><strong>Tổng tiền sau thay đổi:</strong> ${formatCurrency(currentTotal + VAT10)}</li>
-                <li><strong>Tiền phải trả sau khi đến ăn:</strong> ${formatCurrency((currentTotal + VAT10) - customerInfo.deposit)}</li>
+                <li><strong>Tạm tính:</strong> ${formatCurrency(currentTotal)} <strong>Thuế(10%):</strong> ${formatCurrency(VAT10)} <strong>Giảm giá(${customerInfo.discount ? customerInfo.discount : 0}%):</strong> ${formatCurrency(discount)}</li>
+                <li><strong>Tổng tiền sau thay đổi:</strong> ${formatCurrency(currentTotal + VAT10 - discount)}</li>
+                <li><strong>Tiền phải trả sau khi đến ăn:</strong> ${formatCurrency((currentTotal + VAT10 - discount) - customerInfo.deposit)}</li>
             </ul>
             <p style="color: red;">Chúng tôi sẽ xử lý yêu cầu của bạn trong thời gian sớm nhất, hãy chú ý điện thoại chúng tôi sẽ gọi cho bạn để xác nhận.</p>
             <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
@@ -99,9 +99,9 @@ router.post('/send', (req, res) => {
             <ul>
                 <li><strong>Tổng tiền ban đầu:</strong> ${formatCurrency(customerInfo.total_amount)}</li>
                 <li><strong>Tiền đã đặt cọc:</strong> ${formatCurrency(customerInfo.deposit)}</li>
-                <li><strong>Tạm tính:</strong> ${formatCurrency(currentTotal)} <strong>Thuế(10%):</strong> ${formatCurrency(VAT10)}</li>
-                <li><strong>Tổng tiền sau thay đổi:</strong> ${formatCurrency(currentTotal + VAT10)}</li>
-                <li><strong>Tiền phải trả sau khi đến ăn:</strong> ${formatCurrency((currentTotal + VAT10) - customerInfo.deposit)}</li>
+                <li><strong>Tạm tính:</strong> ${formatCurrency(currentTotal)} <strong>Thuế(10%):</strong> ${formatCurrency(VAT10)} <strong>Giảm giá(${customerInfo.discount ? customerInfo.discount : 0}%):</strong> ${formatCurrency(discount)}</li>
+                <li><strong>Tổng tiền sau thay đổi:</strong> ${formatCurrency(currentTotal + VAT10 - discount)}</li>
+                <li><strong>Tiền phải trả sau khi đến ăn:</strong> ${formatCurrency((currentTotal + VAT10 - discount) - customerInfo.deposit)}</li>
             </ul>
             <p style="color: red;">Vui lòng xử lý yêu cầu thay đổi món ăn của khách hàng.</p>
         `,

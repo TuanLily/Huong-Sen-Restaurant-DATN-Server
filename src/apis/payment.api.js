@@ -397,11 +397,12 @@ router.post("/pay_balance", async (req, res) => {
 
 const updateReservationStatus = async (orderId) => {
   // Lấy trạng thái hiện tại
-  const getStatusQuery = `SELECT status FROM reservations WHERE reservation_code = ?`;
+  const getStatusQuery = `SELECT status, table_id FROM reservations WHERE reservation_code = ?`;
   const updateStatusQuery = `UPDATE reservations SET status = ? WHERE reservation_code = ?`;
+  const updateTableStatusQuery = `UPDATE tables SET status = ? WHERE id = ?`;
 
   try {
-    const currentStatus = await new Promise((resolve, reject) => {
+    const { currentStatus, tableId } = await new Promise((resolve, reject) => {
       connection.query(getStatusQuery, [orderId], (err, results) => {
         if (err) {
           console.error("Error fetching reservation status:", err);
@@ -409,28 +410,46 @@ const updateReservationStatus = async (orderId) => {
         } else if (results.length === 0) {
           reject(new Error("Reservation not found."));
         } else {
-          resolve(results[0].status);
+          resolve({
+            currentStatus: results[0].status,
+            tableId: results[0].table_id,
+          });
         }
       });
     });
 
     // Kiểm tra và cập nhật trạng thái
     const newStatus = currentStatus == 4 ? 5 : 3;
+    const newTableStatus = newStatus === 5 ? 1 : 0; // 1 nếu newStatus là 5, 0 nếu newStatus là 3
+
+    // Cập nhật trạng thái của reservation
     await new Promise((resolve, reject) => {
       connection.query(updateStatusQuery, [newStatus, orderId], (err) => {
         if (err) {
           console.error("Error updating reservation status:", err);
           reject(err);
         } else {
-          console.log ('hahahhahahah');
           resolve();
         }
       });
     });
 
-    console.log(`Reservation status updated successfully to ${newStatus}`);
-    return newStatus;
+    // Cập nhật trạng thái của table
+    await new Promise((resolve, reject) => {
+      connection.query(updateTableStatusQuery, [newTableStatus, tableId], (err) => {
+        if (err) {
+          console.error("Error updating table status:", err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    console.log(`Reservation and table status updated successfully.`);
+    return { newStatus, newTableStatus };
   } catch (error) {
+    console.error("Error during status update:", error);
     throw error;
   }
 };
