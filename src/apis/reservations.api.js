@@ -40,6 +40,54 @@ router.get("/:id", (req, res) => {
   });
 });
 
+const findAvailableTable = (reservationDate, partySize, callback) => {
+  const getAvailableTablesQuery = `
+  SELECT * FROM tables 
+  WHERE (? = 1 AND capacity = 2) OR
+        (? = 2 AND capacity = 2) OR
+        (? = 3 AND capacity = 4) OR
+        (? = 4 AND capacity = 4) OR
+        (? = 5 AND capacity = 6) OR
+        (? = 6 AND capacity = 6) OR
+        (? = 7 AND capacity = 8) OR
+        (? = 8 AND capacity = 8)`;
+
+  connection.query(getAvailableTablesQuery, 
+    [partySize, partySize, partySize, partySize, partySize, partySize, partySize, partySize], 
+    (err, tableResults) => {
+      if (err) return callback(err, null);
+
+      let suitableTableId = null;
+
+      // Kiểm tra từng bàn
+      const checkTableReservationsPromises = tableResults.map(table => {
+        return new Promise((resolve) => {
+          const getTableReservationsQuery = `
+            SELECT status FROM reservations 
+            WHERE table_id = ? AND DATE(reservation_date) = DATE(?)`;
+
+          connection.query(getTableReservationsQuery, [table.id, reservationDate], (err, tableReservationResults) => {
+            if (err) {
+              resolve(null);
+            } else {
+              const invalidStatuses = [3, 4];
+              const hasInvalidReservations = tableReservationResults.some(res => invalidStatuses.includes(res.status));
+
+              if (!hasInvalidReservations) {
+                suitableTableId = table.id;
+              }
+              resolve(suitableTableId);
+            }
+          });
+        });
+      });
+
+      Promise.all(checkTableReservationsPromises).then((results) => {
+        suitableTableId = results.find(id => id !== null);
+        callback(null, suitableTableId);
+      });
+    });
+};
 
 // *Thêm đặt chỗ mới
 router.post("/", (req, res) => {
@@ -60,56 +108,20 @@ router.post("/", (req, res) => {
   const validTotalAmount = total_amount ? parseFloat(total_amount) : 0;
   const deposit = validTotalAmount * 0.3;
 
-  // Xác định sức chứa bàn cần tìm dựa vào số người
-  let requiredCapacity;
-  if (party_size === 1 || party_size === 2) {
-    requiredCapacity = 2; // Bàn cho 2 người
-  } else if (party_size >= 3 && party_size <= 4) {
-    requiredCapacity = 4; // Bàn cho 4 người
-  } else if (party_size >= 5 && party_size <= 6) {
-    requiredCapacity = 6; // Bàn cho 6 người
-  } else if (party_size >= 7 && party_size <= 8) {
-    requiredCapacity = 8; // Bàn cho 8 người
-  } else {
-    requiredCapacity = 8; // Nhóm lớn hơn 8 người vẫn chỉ chọn bàn 8 người
-  }
-
-  // SQL để tìm bàn phù hợp
-  const today = new Date().toISOString().split("T")[0];
+  // Kiểm tra bàn có sẵn
   const reservationDate = new Date(reservation_date).toISOString().split("T")[0];
 
-  const findTableSql =
-    reservationDate === today
-      ? `
-        SELECT id, number, capacity
-        FROM tables
-        WHERE capacity >= ? AND status = 1
-        ORDER BY capacity ASC, id ASC
-        LIMIT 1
-      `
-      : `
-        SELECT id, number, capacity
-        FROM tables
-        WHERE capacity >= ? AND (status = 1 OR status = 0)
-        ORDER BY status DESC, capacity ASC, id ASC
-        LIMIT 1
-      `;
+  console.log (reservationDate);
 
-  // Thực thi truy vấn để tìm bàn
-  connection.query(findTableSql, [requiredCapacity], (err, tableResults) => {
+  findAvailableTable(reservationDate, party_size, (err, tableId) => {
     if (err) {
-      console.error("Error finding table:", err);
+      console.error("Error finding available table:", err);
       return res.status(500).json({ error: "Failed to find a suitable table" });
     }
 
-    if (tableResults.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No available table for the specified party size" });
+    if (!tableId) {
+      return res.status(400).json({ error: "No available table for the specified party size" });
     }
-
-    const table = tableResults[0]; // Lấy bàn đầu tiên phù hợp
-    const tableId = table.id;
 
     // SQL để thêm đặt bàn (bao gồm table_id)
     const sql = `
@@ -138,26 +150,10 @@ router.post("/", (req, res) => {
       (err, results) => {
         if (err) {
           console.error("Error creating reservation:", err);
-          return res
-            .status(500)
-            .json({ error: "Failed to create reservation" });
+          return res.status(500).json({ error: "Failed to create reservation" });
         }
 
         const reservationId = results.insertId;
-
-        // Kiểm tra nếu reservation_date là ngày hiện tại
-        if (reservationDate === today) {
-          // Nếu ngày đặt bàn là hôm nay, cập nhật trạng thái bàn thành 0
-          const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
-          connection.query(updateTableSql, [tableId], (err) => {
-            if (err) {
-              console.error("Error updating table status:", err);
-              return res
-                .status(500)
-                .json({ error: "Failed to update table status" });
-            }
-          });
-        }
 
         // Xử lý giảm số lượng khuyến mãi nếu có
         if (promotion_id) {
@@ -166,21 +162,19 @@ router.post("/", (req, res) => {
           connection.query(updatePromotionSql, [promotion_id], (err) => {
             if (err) {
               console.error("Error updating promotion quantity:", err);
-              return res.status(500).json({
-                error: "Failed to update promotion quantity",
-              });
+              return res.status(500).json({ error: "Failed to update promotion quantity" });
             }
             res.status(201).json({
               message: "Reservation created successfully",
               id: reservationId,
-              table,
+              table: { id: tableId }, // Chỉ trả về ID của bàn
             });
           });
         } else {
           res.status(201).json({
             message: "Reservation created successfully",
             id: reservationId,
-            table,
+            table: { id: tableId }, // Chỉ trả về ID của bàn
           });
         }
       }
@@ -188,8 +182,152 @@ router.post("/", (req, res) => {
   });
 });
 
+// // *Thêm đặt chỗ mới
+// router.post("/", (req, res) => {
+//   const {
+//     reservation_code,
+//     user_id,
+//     promotion_id,
+//     fullname,
+//     tel,
+//     email,
+//     reservation_date,
+//     party_size,
+//     note,
+//     total_amount,
+//   } = req.body;
 
+//   const status = 1; // Trạng thái mặc định là "Chờ xác nhận"
+//   const validTotalAmount = total_amount ? parseFloat(total_amount) : 0;
+//   const deposit = validTotalAmount * 0.3;
 
+//   // Xác định sức chứa bàn cần tìm dựa vào số người
+//   let requiredCapacity;
+//   if (party_size === 1 || party_size === 2) {
+//     requiredCapacity = 2; // Bàn cho 2 người
+//   } else if (party_size >= 3 && party_size <= 4) {
+//     requiredCapacity = 4; // Bàn cho 4 người
+//   } else if (party_size >= 5 && party_size <= 6) {
+//     requiredCapacity = 6; // Bàn cho 6 người
+//   } else if (party_size >= 7 && party_size <= 8) {
+//     requiredCapacity = 8; // Bàn cho 8 người
+//   } else {
+//     requiredCapacity = 8; // Nhóm lớn hơn 8 người vẫn chỉ chọn bàn 8 người
+//   }
+
+//   // SQL để tìm bàn phù hợp
+//   const today = new Date().toISOString().split("T")[0];
+//   const reservationDate = new Date(reservation_date).toISOString().split("T")[0];
+
+//   const findTableSql =
+//     reservationDate === today
+//       ? `
+//         SELECT id, number, capacity
+//         FROM tables
+//         WHERE capacity >= ? AND status = 1
+//         ORDER BY capacity ASC, id ASC
+//         LIMIT 1
+//       `
+//       : `
+//         SELECT id, number, capacity
+//         FROM tables
+//         WHERE capacity >= ? AND (status = 1 OR status = 0)
+//         ORDER BY status DESC, capacity ASC, id ASC
+//         LIMIT 1
+//       `;
+
+//   // Thực thi truy vấn để tìm bàn
+//   connection.query(findTableSql, [requiredCapacity], (err, tableResults) => {
+//     if (err) {
+//       console.error("Error finding table:", err);
+//       return res.status(500).json({ error: "Failed to find a suitable table" });
+//     }
+
+//     if (tableResults.length === 0) {
+//       return res
+//         .status(400)
+//         .json({ error: "No available table for the specified party size" });
+//     }
+
+//     const table = tableResults[0]; // Lấy bàn đầu tiên phù hợp
+//     const tableId = table.id;
+
+//     // SQL để thêm đặt bàn (bao gồm table_id)
+//     const sql = `
+//       INSERT INTO reservations 
+//       (reservation_code, user_id, promotion_id, fullname, tel, email, reservation_date, party_size, note, total_amount, deposit, status, table_id) 
+//       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+
+//     connection.query(
+//       sql,
+//       [
+//         reservation_code,
+//         user_id,
+//         promotion_id,
+//         fullname,
+//         tel,
+//         email,
+//         reservation_date,
+//         party_size,
+//         note,
+//         validTotalAmount,
+//         deposit,
+//         status,
+//         tableId,
+//       ],
+//       (err, results) => {
+//         if (err) {
+//           console.error("Error creating reservation:", err);
+//           return res
+//             .status(500)
+//             .json({ error: "Failed to create reservation" });
+//         }
+
+//         const reservationId = results.insertId;
+
+//         // Kiểm tra nếu reservation_date là ngày hiện tại
+//         if (reservationDate === today) {
+//           // Nếu ngày đặt bàn là hôm nay, cập nhật trạng thái bàn thành 0
+//           const updateTableSql = "UPDATE tables SET status = 0 WHERE id = ?";
+//           connection.query(updateTableSql, [tableId], (err) => {
+//             if (err) {
+//               console.error("Error updating table status:", err);
+//               return res
+//                 .status(500)
+//                 .json({ error: "Failed to update table status" });
+//             }
+//           });
+//         }
+
+//         // Xử lý giảm số lượng khuyến mãi nếu có
+//         if (promotion_id) {
+//           const updatePromotionSql =
+//             "UPDATE promotions SET quantity = quantity - 1 WHERE id = ? AND quantity > 0";
+//           connection.query(updatePromotionSql, [promotion_id], (err) => {
+//             if (err) {
+//               console.error("Error updating promotion quantity:", err);
+//               return res.status(500).json({
+//                 error: "Failed to update promotion quantity",
+//               });
+//             }
+//             res.status(201).json({
+//               message: "Reservation created successfully",
+//               id: reservationId,
+//               table,
+//             });
+//           });
+//         } else {
+//           res.status(201).json({
+//             message: "Reservation created successfully",
+//             id: reservationId,
+//             table,
+//           });
+//         }
+//       }
+//     );
+//   });
+// });
 
 // *Cập nhật đặt chỗ theo id bằng phương thức put
 router.put("/:id", (req, res) => {
