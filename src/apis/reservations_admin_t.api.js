@@ -2,6 +2,80 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../../index");
 
+// Ghép bàn cho đơn đang xử lý
+router.post("/addTable", (req, res) => { 
+  const { reservationID } = req.body; 
+
+  // Lấy thông tin đơn đặt bàn đang xử lý
+  const getReservationQuery = `SELECT * FROM reservations WHERE id = ?`;
+  connection.query(getReservationQuery, [reservationID], (err, reservationResults) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (reservationResults.length === 0) return res.status(404).json({ message: "Đặt bàn không tồn tại hoặc không hợp lệ." });
+
+    const reservation = reservationResults[0];
+    const partySize = reservation.party_size;
+
+    // Lấy danh sách tất cả các bàn phù hợp với sức chứa
+    const getAvailableTablesQuery = `SELECT * FROM tables 
+    WHERE (capacity >= 2 AND ? = 1) OR
+          (capacity >= 2 AND ? = 2) OR
+          (capacity >= 4 AND ? = 3) OR
+          (capacity >= 4 AND ? = 4) OR
+          (capacity >= 6 AND ? = 5) OR
+          (capacity >= 6 AND ? = 6) OR
+          (capacity >= 8 AND ? = 7) OR
+          (capacity >= 8 AND ? = 8)`;
+    connection.query(getAvailableTablesQuery, [partySize, partySize, partySize, partySize, partySize, partySize, partySize, partySize], (err, tableResults) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      let suitableTableId = null;
+
+      // Kiểm tra từng bàn
+      const checkTableReservationsPromises = tableResults.map(table => {
+        return new Promise((resolve) => {
+          const getTableReservationsQuery = `
+            SELECT status FROM reservations 
+            WHERE table_id = ? AND DATE(reservation_date) = DATE(?)`;
+          
+          connection.query(getTableReservationsQuery, [table.id, reservation.reservation_date], (err, tableReservationResults) => {
+            if (err) {
+              resolve(null); // Nếu có lỗi, trả về null
+            } else {
+              // Kiểm tra trạng thái của các đơn đặt bàn
+              const invalidStatuses = [3, 4];
+              const hasInvalidReservations = tableReservationResults.some(res => invalidStatuses.includes(res.status));
+
+              // Nếu không có đơn đặt bàn nào có trạng thái 3 hoặc 4, lưu ID bàn
+              if (!hasInvalidReservations) {
+                suitableTableId = table.id; // Lưu ID của bàn thỏa mãn điều kiện
+              }
+              resolve(suitableTableId); // Trả về ID bàn thỏa mãn hoặc null
+            }
+          });
+        });
+      });
+
+      // Chờ tất cả các kiểm tra bàn hoàn thành
+      Promise.all(checkTableReservationsPromises).then((results) => {
+        // Lọc ra bàn phù hợp
+        suitableTableId = results.find(id => id !== null);
+        
+        if (suitableTableId) {
+          // Cập nhật table_id của đơn đặt bàn
+          const updateReservationTableQuery = `UPDATE reservations SET table_id = ? WHERE id = ?`;
+          connection.query(updateReservationTableQuery, [suitableTableId, reservationID], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            return res.status(200).json({ message: "Ghép bàn thành công!", table_id: suitableTableId });
+          });
+        } else {
+          return res.status(400).json({ message: "Không có bàn phù hợp để ghép." });
+        }
+      });
+    });
+  });
+});
+
 // Lấy tất cả đặt bàn
 router.get("/", (req, res) => {
   const {
