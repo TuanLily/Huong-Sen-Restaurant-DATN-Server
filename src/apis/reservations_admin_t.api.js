@@ -106,9 +106,10 @@ router.get("/", (req, res) => {
 
   // SQL truy vấn để lấy danh sách reservations phân trang
   let sql = `
-    SELECT r.*, t.number AS tableName 
+    SELECT r.*, t.number AS tableName, p.discount 
     FROM reservations r
     LEFT JOIN tables t ON r.table_id = t.id
+    LEFT JOIN promotions p ON r.promotion_id = p.id
     WHERE r.fullname LIKE ? 
     AND r.tel LIKE ? 
     AND r.email LIKE ? 
@@ -143,6 +144,7 @@ router.get("/", (req, res) => {
       const totalCount = countResults[0].total;
       const totalPages = Math.ceil(totalCount / limitNumber); // Tính tổng số trang
 
+
       // Lấy danh sách reservations cho trang hiện tại
       connection.query(
         sql,
@@ -164,6 +166,7 @@ router.get("/", (req, res) => {
             currentPage: pageNumber,
             limit: limitNumber,
           });
+          console.log(results);
         }
       );
     }
