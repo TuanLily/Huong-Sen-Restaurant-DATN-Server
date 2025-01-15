@@ -2,6 +2,106 @@ const express = require("express");
 const router = express.Router();
 const connection = require("../../index");
 
+router.post("/changedishes", (req, res) => { 
+  const reservation_id = req.body.selecteReservation_id;
+  const dishesArray = Array.isArray(req.body.selectedChangedishes) ? req.body.selectedChangedishes : JSON.parse(req.body.selectedChangedishes || '[]');
+  const totalPayable = dishesArray.length > 0 ? dishesArray[0].total_amount : 0;
+
+  // Bắt đầu transaction
+  connection.beginTransaction((err) => {
+      if (err) {
+          return res.status(500).json({ message: "Transaction error", error: err });
+      }
+
+      // Cập nhật total_amount trong bảng reservations
+      connection.query(
+          "UPDATE reservations SET total_amount = ?, number_change = ? WHERE id = ?",
+          [totalPayable, 2, reservation_id],
+          (error, results) => {
+              if (error) {
+                  return connection.rollback(() => {
+                      res.status(500).json({ message: "Error updating total_amount", error });
+                  });
+              }
+
+              // Xóa các dòng trong bảng reservation_details
+              connection.query(
+                  "DELETE FROM reservation_details WHERE reservation_id = ?",
+                  [reservation_id],
+                  (deleteError) => {
+                      if (deleteError) {
+                          return connection.rollback(() => {
+                              res.status(500).json({ message: "Error deleting reservation_details", error: deleteError });
+                          });
+                      }
+
+                      // Thêm các dòng mới vào bảng reservation_details
+                      const insertQueries = dishesArray.map(dish => {
+                          return new Promise((resolve, reject) => {
+                              connection.query(
+                                  "INSERT INTO reservation_details (reservation_id, product_id, quantity, price) VALUES (?, ?, ?, ?)",
+                                  [reservation_id, dish.product_id, dish.quantity, dish.price],
+                                  (insertError, insertResults) => {
+                                      if (insertError) {
+                                          return reject(insertError);
+                                      }
+                                      resolve(insertResults);
+                                  }
+                              );
+                          });
+                      });
+
+                      // Chờ tất cả các insert hoàn thành
+                      Promise.all(insertQueries)
+                          .then(() => {
+                              connection.commit((commitError) => {
+                                  if (commitError) {
+                                      return connection.rollback(() => {
+                                          res.status(500).json({ message: "Transaction commit error", error: commitError });
+                                      });
+                                  }
+                                  res.status(200).json({ message: "Changed dishes updated successfully" });
+                              });
+                          })
+                          .catch((insertError) => {
+                              connection.rollback(() => {
+                                  res.status(500).json({ message: "Error inserting into reservation_details", error: insertError });
+                              });
+                          });
+                  }
+              );
+          }
+      );
+  });
+});
+
+router.patch("/notChange", (req, res) => { 
+  const reservation_id = req.body.selecteReservation_id;
+
+  // Kiểm tra xem reservation_id có được cung cấp không
+  if (!reservation_id) {
+      return res.status(400).json({ message: "reservation_id is required." });
+  }
+
+  // Câu lệnh SQL để cập nhật number_change
+  const sql = "UPDATE reservations SET number_change = ? WHERE id = ?";
+  const values = [2, reservation_id];
+
+  connection.query(sql, values, (error, results) => {
+      if (error) {
+          console.error("Error updating reservation:", error);
+          return res.status(500).json({ message: "Internal server error." });
+      }
+
+      // Kiểm tra xem có bản ghi nào được cập nhật không
+      if (results.affectedRows === 0) {
+          return res.status(404).json({ message: "Reservation not found." });
+      }
+
+      return res.status(200).json({ message: "Reservation updated successfully." });
+  });
+});
+
 // Ghép bàn cho đơn đang xử lý
 router.post("/addTable", (req, res) => { 
   const { reservationID } = req.body; 
@@ -105,18 +205,51 @@ router.get("/", (req, res) => {
     "SELECT COUNT(*) as total FROM reservations WHERE fullname LIKE ? AND tel LIKE ? AND email LIKE ? AND status LIKE ? AND reservation_code LIKE ?";
 
   // SQL truy vấn để lấy danh sách reservations phân trang
+  // let sql = `
+  //   SELECT r.*, t.number AS tableName, p.discount 
+  //   FROM reservations r
+  //   LEFT JOIN tables t ON r.table_id = t.id
+  //   LEFT JOIN promotions p ON r.promotion_id = p.id
+  //   WHERE r.fullname LIKE ? 
+  //   AND r.tel LIKE ? 
+  //   AND r.email LIKE ? 
+  //   AND r.status LIKE ? 
+  //   AND r.reservation_code LIKE ? 
+  //   ORDER BY r.id DESC 
+  // `;
+
   let sql = `
-    SELECT r.*, t.number AS tableName, p.discount 
-    FROM reservations r
-    LEFT JOIN tables t ON r.table_id = t.id
-    LEFT JOIN promotions p ON r.promotion_id = p.id
-    WHERE r.fullname LIKE ? 
-    AND r.tel LIKE ? 
-    AND r.email LIKE ? 
-    AND r.status LIKE ? 
-    AND r.reservation_code LIKE ? 
-    ORDER BY r.id DESC 
-  `;
+  SELECT 
+    r.*, 
+    t.number AS tableName, 
+    p.discount,
+    IFNULL(
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'product_id', cd.product_id,
+          'quantity', cd.quantity,
+          'price', cd.price,
+          'total_amount', cd.total_amount,
+          'productName', cd.productName,
+          'productImage', cd.productImage,
+          'taxMoney', cd.taxMoney,
+          'reducedMoney', cd.reducedMoney
+        )
+      ), 
+      JSON_ARRAY()
+    ) AS changedishes
+  FROM reservations r
+  LEFT JOIN tables t ON r.table_id = t.id
+  LEFT JOIN promotions p ON r.promotion_id = p.id
+  LEFT JOIN changedishes cd ON r.id = cd.reservation_id
+  WHERE r.fullname LIKE ? 
+  AND r.tel LIKE ? 
+  AND r.email LIKE ? 
+  AND r.status LIKE ? 
+  AND r.reservation_code LIKE ? 
+  GROUP BY r.id
+  ORDER BY r.id DESC
+`;
 
   // Nếu có phân trang, thêm LIMIT và OFFSET
   const queryParams = [seaName, seaPhone, seaEmail, seaStatus, seaCode];
@@ -166,7 +299,6 @@ router.get("/", (req, res) => {
             currentPage: pageNumber,
             limit: limitNumber,
           });
-          console.log(results);
         }
       );
     }
