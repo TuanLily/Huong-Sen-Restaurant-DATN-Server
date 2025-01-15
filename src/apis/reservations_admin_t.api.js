@@ -686,14 +686,15 @@ router.post("/", (req, res) => {
     tel,
     reservation_date,
     status,
-    deposit,
     partySize,
     notes,
     totalAmount,
     products,
   } = req.body;
 
-  console.log (reservation_date, partySize);
+  const deposit = req.body.deposit ? req.body.deposit : 0;
+
+  console.log ('thay doi là:' , deposit);
 
   // Thực hiện giao dịch
   connection.beginTransaction((err) => {
